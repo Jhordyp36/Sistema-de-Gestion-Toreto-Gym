@@ -165,9 +165,16 @@ cursor.execute('''
 
 cursor.execute('''
     INSERT OR IGNORE INTO usuarios (cedula, apellidos, nombres, usuario, contrasena, telefono, correo, rol, estado, fecha_nacimiento)
-    VALUES ('1234567890', 'Pagual Pisco', 'Christian Jonathan', 'admin', '1234', '0912345678', 'admin@gmail.com', 'Administrador', 'A', '2000-01-01')
+    VALUES ('1234567890', 'Pagual Pisco', 'Christian Jonathan', 'admin', '1234', '0912345678', 'admin@gmail.com', 'Administrador', 'A', '01-01-2001')
 ''')
 
+cursor.execute('''
+    INSERT OR IGNORE INTO membresias (nombre, precio, duracion_dias)
+    VALUES ('Pase Diario', 1.50, 1),
+           ('Estándar', 2.00, 7),
+           ('Premium', 4.00, 20),
+           ('VIP', 7.00, 30)
+''')
 
 conn.commit()
 conn.close()
