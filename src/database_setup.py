@@ -9,20 +9,20 @@ cursor = conn.cursor()
 
 # Tabla usuarios
 cursor.execute('''
-    CREATE TABLE IF NOT EXISTS usuarios (
-        cedula TEXT PRIMARY KEY CHECK(length(cedula) = 10),
-        apellidos TEXT NOT NULL,
-        nombres TEXT NOT NULL,
-        usuario TEXT UNIQUE,
-        contrasena TEXT,
-        telefono TEXT NOT NULL CHECK(length(telefono) = 10),
-        correo TEXT NOT NULL,
-        rol TEXT NOT NULL CHECK(rol IN ('Cliente', 'Administrador', 'Entrenador')),
-        estado TEXT NOT NULL DEFAULT 'A' CHECK(estado IN ('A', 'X')),
-        fecha_nacimiento TEXT NOT NULL,
-        membresia_id INTEGER,
-        fecha_registro TEXT,
-        FOREIGN KEY (membresia_id) REFERENCES membresias(id)
+        CREATE TABLE IF NOT EXISTS usuarios (
+            cedula TEXT PRIMARY KEY CHECK(length(cedula) = 10),
+            apellidos TEXT NOT NULL,
+            nombres TEXT NOT NULL,
+            usuario TEXT UNIQUE,
+            contrasena TEXT,
+            telefono TEXT NOT NULL CHECK(length(telefono) = 10),
+            correo TEXT NOT NULL,
+            rol TEXT NOT NULL CHECK(rol IN ('Cliente', 'Administrador', 'Entrenador')),
+            estado TEXT NOT NULL DEFAULT 'A' CHECK(estado IN ('A', 'X')),
+            fecha_nacimiento TEXT NOT NULL,
+            membresia_id INTEGER,
+            fecha_registro TEXT,
+            FOREIGN KEY (membresia_id) REFERENCES membresias(id)
     )
 ''')
 
