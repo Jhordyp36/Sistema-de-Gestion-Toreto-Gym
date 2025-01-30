@@ -19,7 +19,7 @@ def conexion_db():
         print(f"Error al conectar con la base de datos: {e}")
         return None    
 
-def ventana_administracion():
+def ventana_administracion(callback):
     """
     Crea la ventana de Administración del Sistema.
     """
@@ -61,7 +61,7 @@ def ventana_administracion():
         busqueda_var = StringVar()
         Entry(frame_tabla, textvariable=busqueda_var, width=30).grid(row=0, column=1, padx=10, pady=5, sticky="w")
         # Button(frame_tabla, text="Buscar", command=lambda: cargar_datos(tabla, busqueda_var.get())).grid(row=0, column=2, padx=10, pady=5)
-        Button(frame_tabla, text="Buscar", command=lambda: print("hola")).grid(row=0, column=2, padx=10, pady=5)
+        Button(frame_tabla, text="Buscar", command=lambda: consultar_busqueda(busqueda_var.get(), tabla)).grid(row=0, column=2, padx=10, pady=5)
 
         # Scrollbars
         scroll_x = Scrollbar(frame_tabla, orient="horizontal")
@@ -154,11 +154,9 @@ def ventana_administracion():
             if int(entry_dia.get()) > dias_en_mes:
                 entry_dia.set(str(dias_en_mes).zfill(2))
 
-        # Actualizar los días al seleccionar mes y año
         entry_mes.bind("<<ComboboxSelected>>", lambda event: actualizar_dias())
         entry_ano.bind("<<ComboboxSelected>>", lambda event: actualizar_dias())
 
-        # Función para guardar cliente
         def guardar_cliente():
             # Obtener los valores del formulario
             cedula = entry_cedula.get().strip()
@@ -214,21 +212,97 @@ def ventana_administracion():
                 messagebox.showerror("Error", f"No se pudo registrar el cliente: {e}")
             finally:
                 conn.close()
-        # Botón de guardar
+
         tk.Button(frame_formulario, text="Guardar", font=("Segoe UI", 12), command=guardar_cliente).grid(row=10, column=0, padx=10, pady=10, sticky="e")
         tk.Button(frame_formulario, text="Cancelar", font=("Segoe UI", 12), command=cargar_administracion_usuarios).grid(row=10, column=1, padx=10, pady=10, sticky="e")
 
     def editar_informacion():
         limpiar_contenido()
 
+        # Crear frame para la barra de búsqueda
+        frame_busqueda_editar = tk.Frame(frame_contenido, bg="#272643")
+        frame_busqueda_editar.pack(pady=5, padx=10)
+
+        label_buscar_editar = tk.Label(frame_busqueda_editar, text="Buscar:", font=("Segoe UI", 12), bg="#272643", fg="#ffffff")
+        label_buscar_editar.pack(side="left", padx=5)
+
+        entry_buscar_editar = tk.Entry(frame_busqueda_editar, font=("Segoe UI", 12), width=30)
+        entry_buscar_editar.pack(side="left", padx=5)
+        
+        btn_buscar_editar = tk.Button(frame_busqueda_editar, text="Buscar", font=("Segoe UI", 12), bg="#bae8e8", command=lambda: consultar_busqueda_editar(entry_buscar_editar.get(), tree_editar))
+        btn_buscar_editar.pack(side="left", padx=5)
+
+        # Tabla de resultados
+        columns_editar = ("Cédula", "Apellidos", "Nombres", "Correo", "Teléfono", "Rol", "Fecha Nacimiento")
+        tree_editar = ttk.Treeview(frame_contenido, columns=columns_editar, show="headings", height=10)
+        for col in columns_editar:
+            tree_editar.heading(col, text=col)
+            tree_editar.column(col, anchor="center", width=150)
+
+        tree_editar.pack(padx=10, pady=10)
+
+        # Frame para los campos de edición
+        frame_editar_campos = tk.Frame(frame_contenido, bg="#272643")
+        frame_editar_campos.pack(pady=10, padx=10)
+
+        # Labels y Entries para editar los campos
+        label_apellidos = tk.Label(frame_editar_campos, text="Apellidos:", font=("Segoe UI", 12), bg="#272643", fg="#ffffff")
+        label_apellidos.grid(row=0, column=0, padx=5, pady=5, sticky="w")
+        entry_apellidos = tk.Entry(frame_editar_campos, font=("Segoe UI", 12), width=30)
+        entry_apellidos.grid(row=0, column=1, padx=5, pady=5)
+
+        label_nombres = tk.Label(frame_editar_campos, text="Nombres:", font=("Segoe UI", 12), bg="#272643", fg="#ffffff")
+        label_nombres.grid(row=1, column=0, padx=5, pady=5, sticky="w")
+        entry_nombres = tk.Entry(frame_editar_campos, font=("Segoe UI", 12), width=30)
+        entry_nombres.grid(row=1, column=1, padx=5, pady=5)
+
+        label_telefono = tk.Label(frame_editar_campos, text="Teléfono:", font=("Segoe UI", 12), bg="#272643", fg="#ffffff")
+        label_telefono.grid(row=2, column=0, padx=5, pady=5, sticky="w")
+        entry_telefono = tk.Entry(frame_editar_campos, font=("Segoe UI", 12), width=30)
+        entry_telefono.grid(row=2, column=1, padx=5, pady=5)
+
+        label_correo = tk.Label(frame_editar_campos, text="Correo:", font=("Segoe UI", 12), bg="#272643", fg="#ffffff")
+        label_correo.grid(row=3, column=0, padx=5, pady=5, sticky="w")
+        entry_correo = tk.Entry(frame_editar_campos, font=("Segoe UI", 12), width=30)
+        entry_correo.grid(row=3, column=1, padx=5, pady=5)
+        
+        def seleccionar_usuario(event):
+            item = tree_editar.selection()
+            if item:
+                # Cargar datos en las entries
+                datos_usuario = tree_editar.item(item)["values"]
+                entry_apellidos.delete(0, "end")
+                entry_apellidos.insert(0, datos_usuario[1])
+                entry_nombres.delete(0, "end")
+                entry_nombres.insert(0, datos_usuario[2])
+                entry_correo.delete(0, "end")
+                entry_correo.insert(0, datos_usuario[4])
+                entry_telefono.delete(0, "end")
+                entry_telefono.insert(0, "0" + str(datos_usuario[3]))
+        
+        tree_editar.bind("<ButtonRelease-1>", seleccionar_usuario)
+
+        # Botones de guardar y cancelar
+        frame_botones = tk.Frame(frame_contenido, bg="#272643")
+        frame_botones.pack(pady=10)
+        btn_guardar = tk.Button(frame_botones, text="Guardar", font=("Segoe UI", 12), bg="#bae8e8", command=lambda: guardar_cambios_usuarios(entry_apellidos, entry_nombres, entry_correo, entry_telefono, obtener_id_seleccionado(tree_editar)))
+
+        btn_guardar.pack(side="left", padx=10)
+
+        btn_cancelar = tk.Button(frame_botones, text="Cancelar", font=("Segoe UI", 12), bg="#bae8e8", command=cargar_administracion_usuarios)
+        btn_cancelar.pack(side="left", padx=10)
+        
+        cargar_datos_edicion(tree_editar)
+
     def eliminar_usuario(tabla):
         seleccion = tabla.selection()
+        fecha_hora_actual = datetime.now().strftime("%d-%m-%Y %H:%M:%S")
+
         if not seleccion:
             messagebox.showwarning("Selección", "Por favor, seleccione un usuario para eliminar.")
             return
 
         usuario_id = tabla.item(seleccion[0])["values"][0]  # Cedula correctamente obtenida
-        print(f"usuario_id: '{usuario_id}'")  # Imprime el valor con comillas para ver si hay espacios
 
         # Eliminar posibles espacios al inicio y final
         if str(usuario_id).strip() == "1234567890":
@@ -242,6 +316,10 @@ def ventana_administracion():
         try:
             cursor = conn.cursor()
             cursor.execute("UPDATE usuarios SET estado = 'X' WHERE cedula = ?", (usuario_id,))
+            cursor.execute(
+                        "INSERT INTO logs (usuario, fecha_hora, accion) VALUES (?, ?, ?)",
+                        ("admin", fecha_hora_actual, f"Eliminación usuario: {usuario_id}"),
+                    )
             conn.commit()
             messagebox.showinfo("Éxito", "Usuario eliminado correctamente.")
             cargar_administracion_usuarios()  # Recargar la tabla después de la eliminación
@@ -257,8 +335,7 @@ def ventana_administracion():
         # Limpiar la tabla de servicios
         for row in tabla_servicios.get_children():
             tabla_servicios.delete(row)
-            
-    # Función para cargar las membresías
+
     def cargar_membresias(tabla_membresias):
         # Conectar a la base de datos
         conn = conexion_db()
@@ -525,35 +602,42 @@ def ventana_administracion():
         
         Button(frame_contenido, text="Cancelar", bg="#bae8e8", font=("Segoe UI", 12), command=cargar_administracion_parametros).pack(pady=10, side="left", padx=10)
         
-        # Llamar a la función para cargar los servicios disponibles en la tabla
         cargar_servicios_disponibles(lista_servicios)
         cargar_membresias(tabla_membresias)
 
-
     def agregar_servicio(lista_servicios, tabla_servicios):
         try:
-            # Obtener el servicio seleccionado
+            # Obtener los servicios seleccionados
             seleccionados = lista_servicios.curselection()
+            if not seleccionados:
+                messagebox.showwarning("Selección Vacía", "Por favor, seleccione un servicio.")
+                return
 
-            if seleccionados:
-                # Conectar a la base de datos
-                conn = conexion_db()
-                cursor = conn.cursor()
+            # Obtener los servicios ya agregados a la tabla
+            servicios_existentes = [tabla_servicios.item(item)["values"][1] for item in tabla_servicios.get_children()]
 
-                # Iterar sobre los servicios seleccionados
-                for index in seleccionados:
-                    servicio_nombre = lista_servicios.get(index)
+            # Conectar a la base de datos
+            conn = conexion_db()
+            cursor = conn.cursor()
 
-                    # Consultar el ID del servicio por su nombre
-                    cursor.execute('''SELECT id FROM servicios WHERE nombre = ?''', (servicio_nombre,))
-                    servicio_id = cursor.fetchone()
+            for index in seleccionados:
+                servicio_nombre = lista_servicios.get(index)
 
-                    if servicio_id:
-                        # Agregar el servicio a la tabla de servicios seleccionados
-                        tabla_servicios.insert('', 'end', values=(servicio_id[0], servicio_nombre))
+                # Verificar si el servicio ya está en la tabla
+                if servicio_nombre in servicios_existentes:
+                    messagebox.showwarning("Servicio Duplicado", f"El servicio '{servicio_nombre}' ya está incluido.")
+                    continue  # Saltar al siguiente servicio
 
-                # Cerrar la conexión
-                conn.close()
+                # Consultar el ID del servicio por su nombre
+                cursor.execute('''SELECT id FROM servicios WHERE nombre = ?''', (servicio_nombre,))
+                servicio_id = cursor.fetchone()
+
+                if servicio_id:
+                    # Agregar el servicio a la tabla de servicios seleccionados
+                    tabla_servicios.insert('', 'end', values=(servicio_id[0], servicio_nombre))
+
+            # Cerrar la conexión
+            conn.close()
 
         except Exception as e:
             print(f"Error al agregar servicio: {e}")
@@ -585,62 +669,137 @@ def ventana_administracion():
         selected_item = tabla_servicios.selection()
         if selected_item:
             tabla_servicios.delete(selected_item)
- 
-    def guardar_cambios_membresia(entry_duracion, estado_var, entry_precio, tabla_servicios, membresia_id):
+
+    def guardar_cambios_usuarios(entry_apellidos, entry_nombres, entry_correo, entry_telefono, cedula):
+        # Obtener los valores actualizados de los entrys
+        apellidos = entry_apellidos.get()
+        nombres = entry_nombres.get()
+        correo = entry_correo.get()
+        telefono = entry_telefono.get()
+        fecha_hora_actual = datetime.now().strftime("%d-%m-%Y %H:%M:%S")
+
+
+        # Validaciones
+        if not verifica_nombres_apellidos(nombres) or not verifica_nombres_apellidos(apellidos):
+            messagebox.showerror("Error", "Los nombres y apellidos deben ser válidos.")
+            return
+        
+        if not verifica_correo(correo):
+            messagebox.showerror("Error", "El correo electrónico no es válido.")
+            return
+
+        if not verifica_telefono(telefono):
+            messagebox.showerror("Error", "El número de teléfono no es válido.")
+            return
+
         try:
-            # Conectar a la base de datos
             conn = conexion_db()
             cursor = conn.cursor()
 
+            # 1. Recuperar los datos actuales del usuario
+            cursor.execute('''SELECT apellidos, nombres, correo, telefono FROM usuarios WHERE cedula = ?''', (cedula,))
+            datos_usuario = cursor.fetchone()
+
+            # Si no existe el usuario, mostrar mensaje de error
+            if not datos_usuario:
+                messagebox.showerror("Error", "Usuario no encontrado.")
+                return
+
+            # 2. Verificar si los datos nuevos son diferentes a los actuales
+            if (apellidos == datos_usuario[0] and 
+                nombres == datos_usuario[1] and 
+                correo == datos_usuario[2] and 
+                telefono == datos_usuario[3]):
+                messagebox.showinfo("Sin cambios", "No hay cambios en los datos.")
+                return
+
+            # 3. Si hay cambios, actualizar la información en la base de datos
+            cursor.execute('''
+                UPDATE usuarios
+                SET apellidos = ?, nombres = ?, correo = ?, telefono = ?
+                WHERE cedula = ?
+            ''', (apellidos, nombres, correo, telefono, cedula))
+
+            cursor.execute(
+                        "INSERT INTO logs (usuario, fecha_hora, accion) VALUES (?, ?, ?)",
+                        ("admin", fecha_hora_actual, f"Edición usuario: {cedula}"),
+                    )
+
+            conn.commit()
+            conn.close()
+
+            messagebox.showinfo("Éxito", "Los datos se han actualizado correctamente")
+            editar_informacion()
+
+        except Exception as e:
+            print(f"Error al guardar cambios: {e}")
+            messagebox.showerror("Error", "Hubo un problema al guardar los cambios.")
+
+    def guardar_cambios_membresia(entry_duracion, estado_var, entry_precio, tabla_servicios, membresia_id):
+        try:
             # Obtener los valores actualizados de los entrys y la tabla de servicios
             duracion = entry_duracion.get()  # Duración en días
             estado = estado_var.get()        # Estado de la membresía
             precio = entry_precio.get()      # Precio de la membresía
-            
-            # 1. Actualizar la información de la membresía en la tabla `membresias`
-            cursor.execute('''
-                UPDATE membresias
-                SET duracion_dias = ?, estado = ?, precio = ?
-                WHERE id = ?
-            ''', (duracion, estado, precio, membresia_id))
-            
-            # 2. Actualizar los servicios asociados a la membresía
-            # Primero, eliminamos los servicios anteriores asociados a la membresía
-            cursor.execute('''
-                DELETE FROM membresias_servicios
-                WHERE membresia_id = ?
-            ''', (membresia_id,))
-            
-            # Ahora, insertamos los nuevos servicios seleccionados de la tabla
-            for fila in tabla_servicios.get_children():
-                # Acceder a la primera columna para obtener el ID del servicio
-                servicio_id = tabla_servicios.item(fila, 'values')[0]  # El ID del servicio
+            fecha_hora_actual = datetime.now().strftime("%d-%m-%Y %H:%M:%S")
 
-                # Verificar si el servicio_id es un número entero (ID válido)
-                try:
-                    servicio_id = int(servicio_id)  # Intentar convertir a entero
-                except ValueError:
-                    print(f"El valor '{servicio_id}' no es un ID válido. Omitiendo este servicio.")
-                    continue  # Si no es un ID válido, lo omitimos
+            # Conectar a la base de datos
+            conn = conexion_db()
+            cursor = conn.cursor()
 
-                # Insertar el servicio en la base de datos
-                cursor.execute('''
-                    INSERT INTO membresias_servicios (membresia_id, servicio_id)
-                    VALUES (?, ?)
-                ''', (membresia_id, servicio_id))
-            
-            # Confirmar los cambios
+            # 1. Recuperar los datos actuales de la membresía
+            cursor.execute('''SELECT duracion_dias, estado, precio FROM membresias WHERE id = ?''', (membresia_id,))
+            datos_membresia = cursor.fetchone()
+
+            if not datos_membresia:
+                messagebox.showerror("Error", "Membresía no encontrada.")
+                conn.close()
+                return
+
+            # 2. Recuperar los servicios actualmente asignados a la membresía
+            cursor.execute('''SELECT servicio_id FROM membresias_servicios WHERE membresia_id = ?''', (membresia_id,))
+            servicios_actuales = {row[0] for row in cursor.fetchall()}  # Conjunto de servicios actuales
+
+            # 3. Obtener los servicios nuevos de la tabla
+            servicios_nuevos = {int(tabla_servicios.item(fila, 'values')[0]) for fila in tabla_servicios.get_children()}  
+
+            # 4. Verificar si hubo algún cambio
+            datos_iguales = (duracion == str(datos_membresia[0]) and 
+                            estado == datos_membresia[1] and 
+                            precio == str(datos_membresia[2]))
+
+            servicios_iguales = (servicios_actuales == servicios_nuevos)
+
+            if datos_iguales and servicios_iguales:
+                messagebox.showinfo("Sin cambios", "No hay cambios en los datos.")
+                conn.close()
+                return
+
+            # 5. Si hay cambios en los datos, actualizar la membresía
+            cursor.execute('''UPDATE membresias SET duracion_dias = ?, estado = ?, precio = ? WHERE id = ?''', 
+                        (duracion, estado, precio, membresia_id))
+
+            # 6. Si hay cambios en los servicios, actualizar la relación
+            if not servicios_iguales:
+                cursor.execute('''DELETE FROM membresias_servicios WHERE membresia_id = ?''', (membresia_id,))
+                for servicio_id in servicios_nuevos:
+                    cursor.execute('''INSERT INTO membresias_servicios (membresia_id, servicio_id) VALUES (?, ?)''', 
+                                (membresia_id, servicio_id))
+
+            # 7. Registrar la acción en los logs
+            cursor.execute("INSERT INTO logs (usuario, fecha_hora, accion) VALUES (?, ?, ?)",
+                        ("admin", fecha_hora_actual, f"Edición membresía: {membresia_id}"))
+
+            # Confirmar cambios
             conn.commit()
-            # Cerrar la conexión
             conn.close()
 
-            messagebox.showinfo("Éxito", "Los datos se han actualizado correctamente")
+            messagebox.showinfo("Éxito", "Los datos se han actualizado correctamente.")
             mostrar_edicion_membresia()
-            
-        except Exception as e:
-            # Si hay algún error, mostrarlo
-            print(f"Error al guardar cambios: {e}")
 
+        except Exception as e:
+            print(f"Error al guardar cambios: {e}")
+            messagebox.showerror("Error", "Hubo un problema al guardar los cambios.")
 
     def cargar_auditoria():
         limpiar_contenido()
@@ -719,7 +878,61 @@ def ventana_administracion():
             messagebox.showerror("Error", f"Error al filtrar logs: {e}")
         finally:
             conn.close()
-    
+        
+    def consultar_busqueda_editar(termino, tabla):
+        conn = conexion_db()
+        if not conn:
+            return
+        try:
+            cursor = conn.cursor()
+            consulta = """
+            SELECT cedula, apellidos, nombres, telefono, correo, rol, fecha_nacimiento
+            FROM usuarios
+            WHERE cedula LIKE ? OR apellidos LIKE ? OR nombres LIKE ? OR telefono LIKE ? OR correo LIKE ? OR rol LIKE ?
+            """
+            cursor.execute(consulta, (f"%{termino}%", f"%{termino}%", f"%{termino}%", f"%{termino}%", f"%{termino}%", f"%{termino}%"))
+            registros = cursor.fetchall()
+            
+            # Limpiar la tabla antes de insertar los nuevos resultados
+            for registro in tabla.get_children():
+                tabla.delete(registro)
+
+            # Asegúrate de insertar los registros en el orden correcto
+            for registro in registros:
+                tabla.insert("", "end", values=registro)
+
+        except sqlite3.Error as e:
+            messagebox.showerror("Error", f"Error al encontrar al usuario: {e}")
+        finally:
+            conn.close()
+
+    def consultar_busqueda(termino, tabla):
+        conn = conexion_db()
+        if not conn:
+            return
+        try:
+            cursor = conn.cursor()
+            consulta = """
+            SELECT cedula, apellidos, nombres, telefono, correo, rol, estado, fecha_nacimiento, membresia_id, fecha_registro
+            FROM usuarios
+            WHERE cedula LIKE ? OR apellidos LIKE ? OR nombres LIKE ? OR telefono LIKE ? OR correo LIKE ? OR rol LIKE ?
+            """
+            cursor.execute(consulta, (f"%{termino}%", f"%{termino}%", f"%{termino}%", f"%{termino}%", f"%{termino}%", f"%{termino}%"))
+            registros = cursor.fetchall()
+            
+            # Limpiar la tabla antes de insertar los nuevos resultados
+            for registro in tabla.get_children():
+                tabla.delete(registro)
+
+            # Asegúrate de insertar los registros en el orden correcto
+            for registro in registros:
+                tabla.insert("", "end", values=registro)
+
+        except sqlite3.Error as e:
+            messagebox.showerror("Error", f"Error al encontrar al usuario: {e}")
+        finally:
+            conn.close()
+
     def exportar_logs(tabla):
         # Obtener los registros de la tabla
         registros = [tabla.item(fila)["values"] for fila in tabla.get_children()]
@@ -784,10 +997,36 @@ def ventana_administracion():
         except Exception as e:
             messagebox.showerror("Error", f"Error al exportar los logs: {e}")
 
-    def regresar():
-        print("Hola")
+    def cargar_datos_edicion(tabla, filtro=""):
+        conn = conexion_db()  # Cambio aquí
+        if not conn:
+            return
 
-    # Función: Cargar datos en la tabla
+        cursor = conn.cursor()
+        query = "SELECT cedula, apellidos, nombres, telefono, correo, rol, fecha_nacimiento FROM usuarios WHERE estado = 'A' AND rol != 'Administrador'"
+
+        if filtro:
+            query += " AND (cedula LIKE ? OR apellidos LIKE ? OR nombres LIKE ? OR telefono LIKE ? OR correo LIKE ? OR rol LIKE?)"
+            cursor.execute(query, (f"%{filtro}%", f"%{filtro}%", f"%{filtro}%", f"%{filtro}%", f"%{filtro}%", f"%{filtro}%"))
+        else:
+            cursor.execute(query)
+
+        datos = cursor.fetchall()
+        conn.close()
+
+        # Limpiar tabla
+        for item in tabla.get_children():
+            tabla.delete(item)
+
+        # Insertar datos
+        for fila in datos:
+            # Reemplazar NULL o vacío por 'None' en cada columna
+            fila_con_none = tuple(
+                "None" if campo is None or campo == "" else campo for campo in fila
+            )
+            # Insertar fila en la tabla, asegurando que todos los datos (incluyendo fecha_registro) se muestren
+            tabla.insert("", "end", values=fila_con_none)
+
     def cargar_datos(tabla, filtro=""):
         conn = conexion_db()  # Cambio aquí
         if not conn:
@@ -826,6 +1065,10 @@ def ventana_administracion():
     Button(frame_botones_principales, text="Administración de Usuarios", font=("Segoe UI", 14), bg="#bae8e8", command=cargar_administracion_usuarios).pack(side="left", padx=10)
     Button(frame_botones_principales, text="Administración de Parámetros", font=("Segoe UI", 14), bg="#bae8e8", command=cargar_administracion_parametros).pack(side="left", padx=10)
     Button(frame_botones_principales, text="Auditoría", font=("Segoe UI", 14), bg="#bae8e8", command=cargar_auditoria).pack(side="left", padx=10)
-    Button(frame_botones_principales, text="Regresar", font=("Segoe UI", 14), bg="#bae8e8", command=regresar).pack(side="right", padx=10)   
+    Button(frame_botones_principales, text="Regresar", font=("Segoe UI", 14), bg="#bae8e8", command=lambda: regresar(callback, ventana)).pack(side="right", padx=10)   
 
     ventana.mainloop()
+
+def regresar(callback, ventana):
+        ventana.destroy()
+        callback()
