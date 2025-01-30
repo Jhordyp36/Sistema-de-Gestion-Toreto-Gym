@@ -273,6 +273,36 @@ cursor.execute('''
         ('Uso de Máquina de Piernas', 'Servicio para uso de máquina de piernas', 'Si', NULL, (SELECT id FROM equipos WHERE nombre = 'Máquina de Piernas'), NULL, NULL, 'Área de Fuerza')
 ''')
 
+cursor.execute(''' 
+    INSERT or IGNORE INTO usuarios (cedula, apellidos, nombres, telefono, correo, rol, estado, fecha_nacimiento, fecha_registro) 
+    VALUES
+        ('0954632781', 'López Andrade', 'Carlos Andrés', '0987654321', 'carlos.lopez@mail.com', 'Cliente', 'A', '15-08-2004', '29-01-2025 16:10:45'),
+        ('1765432987', 'Castillo Romero', 'Andrea Fernanda', '0987123456', 'andrea.castillo@mail.com', 'Cliente', 'A', '20-02-2003', '29-01-2025 16:12:30'),
+        ('1785643201', 'Benítez Montalvo', 'David Sebastián', '0987543210', 'david.benitez@mail.com', 'Cliente', 'A', '05-06-2001', '29-01-2025 16:15:12'),
+        ('1723456789', 'Mendoza Salazar', 'Sofía Gabriela', '0978123456', 'sofia.mendoza@mail.com', 'Cliente', 'A', '12-12-2000', '29-01-2025 16:18:54'),
+        ('1809876543', 'Narváez Suárez', 'Fernando Ricardo', '0967452310', 'fernando.narvaez@mail.com', 'Cliente', 'A', '03-05-2005', '29-01-2025 16:22:01'),
+
+        ('1798765432', 'Chávez Ortega', 'Jorge Luis', '0956348721', 'jorge.chavez@mail.com', 'Entrenador', 'A', '22-03-1995', '29-01-2025 16:30:15'),
+        ('1897654321', 'Reyes Cevallos', 'Marcelo Esteban', '0945632187', 'marcelo.reyes@mail.com', 'Entrenador', 'A', '17-07-1992', '29-01-2025 16:35:27'),
+        ('1923456789', 'Zambrano Torres', 'Patricia Elena', '0978432165', 'patricia.zambrano@mail.com', 'Entrenador', 'A', '09-09-1998', '29-01-2025 16:40:33'),
+        ('1854321765', 'Figueroa Ayala', 'Luis Daniel', '0954321678', 'luis.figueroa@mail.com', 'Entrenador', 'A', '14-01-1990', '29-01-2025 16:45:49'),
+        ('1745612398', 'Galarza Espinoza', 'Carolina Beatriz', '0986712345', 'carolina.galarza@mail.com', 'Entrenador', 'A', '08-11-1996', '29-01-2025 16:50:20');
+''')
+
+# cursor.execute(''' 
+#     INSERT INTO logs (usuario, fecha_hora, accion) 
+#     VALUES
+#         ('admin', '29-01-2025 16:10:45', 'Creación usuario: 0954632781'),
+#         ('admin', '29-01-2025 16:12:30', 'Creación usuario: 1765432987'),
+#         ('admin', '29-01-2025 16:15:12', 'Creación usuario: 1785643201'),
+#         ('admin', '29-01-2025 16:18:54', 'Creación usuario: 1723456789'),
+#         ('admin', '29-01-2025 16:22:01', 'Creación usuario: 1809876543'),
+#         ('admin', '29-01-2025 16:30:15', 'Creación usuario: 1798765432'),
+#         ('admin', '29-01-2025 16:35:27', 'Creación usuario: 1897654321'),
+#         ('admin', '29-01-2025 16:40:33', 'Creación usuario: 1923456789'),
+#         ('admin', '29-01-2025 16:45:49', 'Creación usuario: 1854321765'),
+#         ('admin', '29-01-2025 16:50:20', 'Creación usuario: 1745612398');
+# ''')
 conn.commit()
 
 conn.close()

@@ -2,6 +2,7 @@ import os
 from tkinter import CENTER, Button, Frame, Label, PhotoImage, Tk
 from config.config import ICONS_DIR, IMAGES_DIR
 from src.utils.helpers import cargar_icono
+from src.administracion_sistema import ventana_administracion
 
 def crear_ventana_principal(usuario, callback):
     # Configuración de la ventana principal
@@ -35,7 +36,8 @@ def crear_ventana_principal(usuario, callback):
         print("En proceso")
 
     def abrir_administracion():
-        print("En proceso")
+        ventana_principal.destroy()
+        ventana_administracion(lambda: crear_ventana_principal(usuario))
 
     def abrir_gestion_equipos():
         print("En proceso")
