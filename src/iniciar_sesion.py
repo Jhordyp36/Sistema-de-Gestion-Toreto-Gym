@@ -68,7 +68,7 @@ def crear_ventana_iniciar_sesion():
     login.config(bg="#272643")
     login.resizable(False, False)
     centrar_ventana(login, 816, 650)
-    cargar_icono(login, ICONS_DIR)
+    cargar_icono(login, os.path.join(ICONS_DIR, "Icono.ico"))
 
     # Imagen superior
     imagen_superior = PhotoImage(file=os.path.join(IMAGES_DIR, "Informacion.png"))

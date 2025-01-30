@@ -35,7 +35,7 @@ def verifica_fecha_nacimiento(fecha_nacimiento):
     try:
         from datetime import datetime, timedelta
         
-        fecha = datetime.strptime(fecha_nacimiento.strip(), "%d/%m/%Y")
+        fecha = datetime.strptime(fecha_nacimiento.strip(), "%d-%m-%Y")
         edad_minima = datetime.now() - timedelta(days=16 * 365 + 4)
         return fecha <= edad_minima
     except ValueError:
