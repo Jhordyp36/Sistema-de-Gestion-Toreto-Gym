@@ -7,6 +7,15 @@ if not os.path.exists('data'):
 conn = sqlite3.connect('data/toretogym.db')
 cursor = conn.cursor()
 
+# # Borrar tabla membresias_servicios
+# cursor.execute('DROP TABLE IF EXISTS membresias_servicios')
+
+# # Borrar tabla servicios
+# cursor.execute('DROP TABLE IF EXISTS servicios')
+
+# # Borrar tabla clases
+# cursor.execute('DROP TABLE IF EXISTS clases')
+
 # Tabla usuarios
 cursor.execute('''
         CREATE TABLE IF NOT EXISTS usuarios (
@@ -30,7 +39,7 @@ cursor.execute('''
 cursor.execute('''
     CREATE TABLE IF NOT EXISTS membresias (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
-        nombre TEXT NOT NULL,
+        nombre TEXT NOT NULL UNIQUE,
         precio REAL NOT NULL,
         duracion_dias INTEGER NOT NULL,
         estado TEXT NOT NULL DEFAULT 'Activo' CHECK(estado IN ('Activo', 'Inactivo'))
@@ -49,7 +58,7 @@ cursor.execute('''
 cursor.execute('''
     CREATE TABLE IF NOT EXISTS equipos (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
-        nombre TEXT NOT NULL,
+        nombre TEXT NOT NULL UNIQUE,
         categoria_id INTEGER NOT NULL,
         estado TEXT NOT NULL CHECK(estado IN ('Disponible', 'Mantenimiento')),
         FOREIGN KEY (categoria_id) REFERENCES categorias_equipos(id)
@@ -70,14 +79,16 @@ cursor.execute('''
 cursor.execute('''
     CREATE TABLE IF NOT EXISTS servicios (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
-        nombre TEXT NOT NULL,
+        nombre TEXT NOT NULL UNIQUE,
         descripcion TEXT,
         disponible TEXT NOT NULL CHECK(disponible IN ('Si', 'No')),
         clase_id INTEGER,
+        equipo_id INTEGER,
         dia TEXT,
         hora TEXT,
         lugar TEXT,
         FOREIGN KEY (clase_id) REFERENCES clases(id)
+        FOREIGN KEY (equipo_id) REFERENCES equipos(id)
     )
 ''')
 
@@ -159,7 +170,13 @@ cursor.execute('''
 cursor.execute('''
     INSERT OR IGNORE INTO clases (nombre, descripcion, duracion_minutos)
     VALUES ('Yoga', 'Clase de relajación y estiramientos', 60),
-           ('Spinning', 'Ejercicio cardiovascular en bicicleta estática', 45)
+           ('Spinning', 'Ejercicio cardiovascular en bicicleta estática', 45),
+            ('Entrenamiento Funcional', 'Entrenamiento físico que combina ejercicios de fuerza, resistencia y agilidad', 45),
+            ('Aeróbicos', 'Clase grupal de ejercicios aeróbicos para mejorar la resistencia cardiovascular', 40),
+            ('Estiramientos', 'Clase de estiramientos para mejorar la flexibilidad', 30),
+            ('Zumba', 'Clase de baile aeróbico con música latina para mejorar la resistencia', 45),
+            ('Calistenia', 'Ejercicio físico que utiliza el peso corporal como resistencia', 40),
+            ('Circuito', 'Entrenamiento en circuito, alternando entre diferentes estaciones de ejercicio', 50)
 ''')
 
 
@@ -176,5 +193,84 @@ cursor.execute('''
            ('VIP', 7.00, 30)
 ''')
 
+
+# Relacionar las membresías con los servicios correspondientes
+cursor.execute('''
+    INSERT OR IGNORE INTO membresias_servicios (membresia_id, servicio_id)
+    VALUES
+        -- Pase Diario solo tiene acceso a algunas máquinas
+        (1, 9),  -- Uso de Bicicleta Estática (id = 9)
+        (1, 10), -- Uso de Cinta de Correr (id = 10)
+        
+        -- Pase Estándar tiene acceso a todas las máquinas pero no a clases
+        (2, 9),  -- Uso de Bicicleta Estática (id = 9)
+        (2, 10), -- Uso de Cinta de Correr (id = 10)
+        (2, 11), -- Uso de Banco de Pesas (id = 11)
+        (2, 12), -- Uso de Pesas de mano (id = 12)
+        (2, 13), -- Uso de Máquina de Pecho (id = 13)
+        (2, 14), -- Uso de Máquina de Piernas (id = 14)
+        
+        -- Membresía Premium tiene acceso a máquinas y algunas clases básicas
+        (3, 9),  -- Uso de Bicicleta Estática (id = 9)
+        (3, 10), -- Uso de Cinta de Correr (id = 10)
+        (3, 11), -- Uso de Banco de Pesas (id = 11)
+        (3, 12), -- Uso de Pesas de mano (id = 12)
+        (3, 13), -- Uso de Máquina de Pecho (id = 13)
+        (3, 14), -- Uso de Máquina de Piernas (id = 14)
+        (3, 3),  -- Entrenamiento Funcional (id = 3)
+        (3, 4),  -- Aeróbicos (id = 4)
+        (3, 5),  -- Estiramientos (id = 5)
+        
+        -- Membresía VIP tiene acceso a todas las máquinas y todas las clases, más acceso exclusivo
+        (4, 9),  -- Uso de Bicicleta Estática (id = 9)
+        (4, 10), -- Uso de Cinta de Correr (id = 10)
+        (4, 11), -- Uso de Banco de Pesas (id = 11)
+        (4, 12), -- Uso de Pesas de mano (id = 12)
+        (4, 13), -- Uso de Máquina de Pecho (id = 13)
+        (4, 14), -- Uso de Máquina de Piernas (id = 14)
+        (4, 3),  -- Entrenamiento Funcional (id = 3)
+        (4, 4),  -- Aeróbicos (id = 4)
+        (4, 5),  -- Estiramientos (id = 5)
+        (4, 6),  -- Zumba (id = 6)
+        (4, 7),  -- Calistenia (id = 7)
+        (4, 8)   -- Circuito (id = 8)
+''')
+
+# Insertar equipos básicos en las categorías existentes
+cursor.execute('''
+    INSERT OR IGNORE INTO equipos (nombre, categoria_id, estado)
+    VALUES 
+        ('Bicicleta Estática', (SELECT id FROM categorias_equipos WHERE nombre = 'Cardio'), 'Disponible'),
+        ('Cinta de Correr', (SELECT id FROM categorias_equipos WHERE nombre = 'Cardio'), 'Disponible'),
+        ('Banco de Pesas', (SELECT id FROM categorias_equipos WHERE nombre = 'Pesas libres'), 'Disponible'),
+        ('Pesas de mano', (SELECT id FROM categorias_equipos WHERE nombre = 'Pesas libres'), 'Disponible'),
+        ('Máquina de Pecho', (SELECT id FROM categorias_equipos WHERE nombre = 'Máquinas de fuerza'), 'Disponible'),
+        ('Máquina de Piernas', (SELECT id FROM categorias_equipos WHERE nombre = 'Máquinas de fuerza'), 'Disponible')
+''')
+
+# Insertar servicios (Clases y Equipos)
+cursor.execute('''
+    INSERT OR IGNORE INTO servicios (nombre, descripcion, disponible, clase_id, equipo_id, dia, hora, lugar)
+    VALUES
+        -- Servicios relacionados con clases
+        ('Clase de Yoga', 'Clase grupal de relajación y estiramiento', 'Si', (SELECT id FROM clases WHERE nombre = 'Yoga'), NULL, 'Lunes', '08:00', 'Sala A'),
+        ('Clase de Spinning', 'Ejercicio cardiovascular en bicicleta estática', 'Si', (SELECT id FROM clases WHERE nombre = 'Spinning'), NULL, 'Miércoles', '09:00', 'Sala B'),
+        ('Entrenamiento Funcional', 'Entrenamiento físico que combina ejercicios de fuerza, resistencia y agilidad', 'Si', (SELECT id FROM clases WHERE nombre = 'Entrenamiento Funcional'), NULL, 'Martes', '10:00', 'Sala A'),
+        ('Aeróbicos', 'Clase grupal de ejercicios aeróbicos para mejorar la resistencia cardiovascular', 'Si', (SELECT id FROM clases WHERE nombre = 'Aeróbicos'), NULL, 'Jueves', '10:00', 'Sala A'),
+        ('Estiramientos', 'Clase de estiramientos para mejorar la flexibilidad', 'Si', (SELECT id FROM clases WHERE nombre = 'Estiramientos'), NULL, 'Lunes', '07:00', 'Sala A'),
+        ('Zumba', 'Clase de baile aeróbico con música latina para mejorar la resistencia', 'Si', (SELECT id FROM clases WHERE nombre = 'Zumba'), NULL, 'Viernes', '08:00', 'Sala A'),
+        ('Calistenia', 'Ejercicio físico que utiliza el peso corporal como resistencia', 'Si', (SELECT id FROM clases WHERE nombre = 'Calistenia'), NULL, 'Miércoles', '07:00', 'Sala B'),
+        ('Circuito', 'Entrenamiento en circuito, alternando entre diferentes estaciones de ejercicio', 'Si', (SELECT id FROM clases WHERE nombre = 'Circuito'), NULL, 'Sábado', '09:00', 'Sala B'),
+        
+        -- Servicios relacionados con equipos
+        ('Uso de Bicicleta Estática', 'Servicio para uso de bicicleta estática', 'Si', NULL, (SELECT id FROM equipos WHERE nombre = 'Bicicleta Estática'), NULL, NULL, 'Gimnasio'),
+        ('Uso de Cinta de Correr', 'Servicio para uso de cinta de correr', 'Si', NULL, (SELECT id FROM equipos WHERE nombre = 'Cinta de Correr'), NULL, NULL, 'Gimnasio'),
+        ('Uso de Banco de Pesas', 'Servicio para uso de banco de pesas', 'Si', NULL, (SELECT id FROM equipos WHERE nombre = 'Banco de Pesas'), NULL, NULL, 'Área de Pesas'),
+        ('Uso de Pesas de mano', 'Servicio para uso de pesas de mano', 'Si', NULL, (SELECT id FROM equipos WHERE nombre = 'Pesas de mano'), NULL, NULL, 'Área de Pesas'),
+        ('Uso de Máquina de Pecho', 'Servicio para uso de máquina de pecho', 'Si', NULL, (SELECT id FROM equipos WHERE nombre = 'Máquina de Pecho'), NULL, NULL, 'Área de Fuerza'),
+        ('Uso de Máquina de Piernas', 'Servicio para uso de máquina de piernas', 'Si', NULL, (SELECT id FROM equipos WHERE nombre = 'Máquina de Piernas'), NULL, NULL, 'Área de Fuerza')
+''')
+
 conn.commit()
+
 conn.close()

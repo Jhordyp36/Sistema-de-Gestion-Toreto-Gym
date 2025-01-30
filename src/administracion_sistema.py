@@ -3,7 +3,10 @@ from datetime import datetime
 import os
 import sqlite3
 import tkinter as tk
+from tkinter import CENTER, LEFT, RIGHT, Canvas, Listbox, filedialog
 from tkinter.ttk import Combobox
+from reportlab.lib.pagesizes import letter
+from reportlab.pdfgen import canvas
 from tkinter import Button, Frame, Label, Entry, Scrollbar, StringVar, Tk, ttk, messagebox
 from config.config import DB_PATH, ICONS_DIR
 from src.utils.helpers import cargar_icono, verifica_correo, verifica_fecha_nacimiento, verifica_identificacion, verifica_nombres_apellidos, verifica_telefono
@@ -167,7 +170,6 @@ def ventana_administracion():
             fecha_nacimiento = f"{entry_dia.get()}-{entry_mes.get()}-{entry_ano.get()}"
             rol = f"{entry_rol.get()}"
             fecha_hora_actual = datetime.now().strftime("%d-%m-%Y %H:%M:%S")
-            print("fecha_nacimiento:", fecha_nacimiento)
 
             # Validaciones
             if not verifica_identificacion(cedula):
@@ -201,8 +203,10 @@ def ventana_administracion():
                     """,
                     (cedula, apellidos, nombres, telefono, correo, rol, fecha_nacimiento, fecha_hora_actual),
                 )
-                # cursor.execute("INSERT INTO logs (usuario, fecha_hora, accion) VALUES (?, ?, 'Creacion: Membresias')", (actual, fecha_hora_actual))
-
+                cursor.execute(
+                        "INSERT INTO logs (usuario, fecha_hora, accion) VALUES (?, ?, ?)",
+                        ("admin", fecha_hora_actual, f"Creación usuario: {cedula}"),
+                    )
                 conn.commit()
                 messagebox.showinfo("Éxito", "Cliente registrado correctamente.")
                 cargar_administracion_usuarios()
@@ -213,7 +217,6 @@ def ventana_administracion():
         # Botón de guardar
         tk.Button(frame_formulario, text="Guardar", font=("Segoe UI", 12), command=guardar_cliente).grid(row=10, column=0, padx=10, pady=10, sticky="e")
         tk.Button(frame_formulario, text="Cancelar", font=("Segoe UI", 12), command=cargar_administracion_usuarios).grid(row=10, column=1, padx=10, pady=10, sticky="e")
-        
 
     def editar_informacion():
         limpiar_contenido()
@@ -248,12 +251,279 @@ def ventana_administracion():
         finally:
             conn.close()
 
+    # Función para cargar las membresías
+    def cargar_membresias(tabla_membresias):
+        # Conectar a la base de datos
+        conn = conexion_db()
+        cursor = conn.cursor()
+        
+        # Obtener las membresías sin la columna de servicios
+        cursor.execute('''
+            SELECT 
+                m.id, 
+                m.nombre, 
+                m.precio, 
+                m.duracion_dias, 
+                m.estado
+            FROM 
+                membresias m
+        ''')
+        membresias = cursor.fetchall()
+
+        # Limpiar la tabla (si es necesario)
+        for row in tabla_membresias.get_children():
+            tabla_membresias.delete(row)
+
+        # Insertar las membresías en el Treeview
+        for membresia in membresias:
+            tabla_membresias.insert("", "end", values=(membresia[0], membresia[1], membresia[2], membresia[3], membresia[4]))
+
+        # Cerrar la conexión a la base de datos
+        conn.close()
+
+    # Función para cargar los servicios de la membresía seleccionada
+    def mostrar_servicios(tabla_servicios, membresia_id):
+        # Limpiar la tabla de servicios antes de cargar nuevos datos
+        for row in tabla_servicios.get_children():
+            tabla_servicios.delete(row)
+
+        # Conectar a la base de datos
+        conn = conexion_db()
+        cursor = conn.cursor()
+
+        # Obtener los servicios relacionados con la membresía seleccionada
+        cursor.execute('''
+            SELECT s.nombre
+            FROM servicios s
+            JOIN membresias_servicios ms ON s.id = ms.servicio_id
+            WHERE ms.membresia_id = ?
+        ''', (membresia_id,))
+        servicios = cursor.fetchall()
+
+        # Insertar los servicios en el Treeview
+        for servicio in servicios:
+            tabla_servicios.insert("", "end", values=(servicio[0],))
+
+        # Cerrar la conexión a la base de datos
+        conn.close()
+
     def cargar_administracion_parametros():
         limpiar_contenido()
 
+
+
+    def mostrar_edicion_membresia(tabla_membresias):
+        limpiar_contenido()
+        
+        Label(frame_contenido, text="Editar Membresía", font=("Segoe UI", 16), bg="#272643", fg="white").pack(pady=10)
+        
+        frame_edicion = Frame(frame_contenido, bg="#272643")
+        frame_edicion.pack(pady=10, fill="x")
+        
+        # Sección izquierda para edición de datos
+        frame_izquierda = Frame(frame_edicion, bg="#272643")
+        frame_izquierda.pack(side="left", padx=20)
+        
+        Label(frame_izquierda, text="Duración (días):", bg="#272643", fg="white").pack()
+        entry_duracion = Entry(frame_izquierda)
+        entry_duracion.pack(pady=5)
+        
+        Label(frame_izquierda, text="Estado:", bg="#272643", fg="white").pack()
+        estado_var = StringVar()
+        estado_dropdown = ttk.Combobox(frame_izquierda, textvariable=estado_var, values=["Activo", "Inactivo"])
+        estado_dropdown.pack(pady=5)
+        
+        # Sección de selección de servicios
+        Label(frame_izquierda, text="Seleccionar Servicios:", bg="#272643", fg="white").pack()
+        frame_servicios = Frame(frame_izquierda, bg="#272643")
+        frame_servicios.pack()
+        
+        lista_servicios = Listbox(frame_servicios, selectmode="multiple", height=5)
+        lista_servicios.pack(side="left", padx=5)
+        
+        scrollbar_servicios = Scrollbar(frame_servicios, orient="vertical", command=lista_servicios.yview)
+        scrollbar_servicios.pack(side="right", fill="y")
+        lista_servicios.configure(yscrollcommand=scrollbar_servicios.set)
+        
+        Button(frame_izquierda, text="Agregar Servicio", command=lambda: agregar_servicio(lista_servicios, tabla_servicios)).pack(pady=5)
+        
+        # Tabla pequeña a la derecha para mostrar servicios seleccionados
+        frame_derecha = Frame(frame_edicion, bg="#272643")
+        frame_derecha.pack(side="right", padx=20)
+        
+        Label(frame_derecha, text="Servicios Seleccionados", bg="#272643", fg="white").pack()
+        
+        tabla_servicios = ttk.Treeview(frame_derecha, columns=("Servicio"), show="headings", height=5)
+        tabla_servicios.heading("Servicio", text="Servicio")
+        tabla_servicios.column("Servicio", width=200, anchor="center")
+        tabla_servicios.pack()
+        
+        Button(frame_derecha, text="Eliminar Servicio", command=lambda: eliminar_servicio(tabla_servicios)).pack(pady=5)
+        
+        Button(frame_contenido, text="Guardar Cambios", bg="#bae8e8", font=("Segoe UI", 12),
+            command=lambda: guardar_cambios_membresia(entry_duracion, estado_var, tabla_servicios)).pack(pady=10)
+        
+        cargar_servicios_disponibles(lista_servicios)
+
+    def agregar_servicio(lista_servicios, tabla_servicios):
+        for index in lista_servicios.curselection():
+            servicio = lista_servicios.get(index)
+            tabla_servicios.insert("", "end", values=(servicio,))
+
+    def eliminar_servicio(tabla_servicios):
+        selected_item = tabla_servicios.selection()
+        if selected_item:
+            tabla_servicios.delete(selected_item)
+
+    def cargar_servicios_disponibles(lista_servicios):
+        # Aquí se deben cargar los servicios disponibles desde la base de datos
+        pass
+
+    def guardar_cambios_membresia(entry_duracion, estado_var, tabla_servicios):
+        # Aquí se guardarán los cambios en la base de datos
+        pass
+
     def cargar_auditoria():
         limpiar_contenido()
-        print("Hola")
+
+        Label(frame_contenido, text="Auditoría", font=("Segoe UI", 16), bg="#272643", fg="white").pack(pady=10)
+        # Crear tabla para mostrar los logs
+        frame_tabla = Frame(frame_contenido, bg="#272643")
+        frame_tabla.pack(pady=10, fill="both", expand=True)
+
+        tabla_logs = ttk.Treeview(frame_tabla, columns=("ID", "Usuario", "Fecha y Hora", "Acción"), show="headings", height=15)
+        tabla_logs.heading("ID", text="ID")
+        tabla_logs.heading("Usuario", text="Usuario")
+        tabla_logs.heading("Fecha y Hora", text="Fecha y Hora")
+        tabla_logs.heading("Acción", text="Acción")
+
+        tabla_logs.column("ID", width=50, anchor="center")
+        tabla_logs.column("Usuario", width=150, anchor="center")
+        tabla_logs.column("Fecha y Hora", width=150, anchor="center")
+        tabla_logs.column("Acción", width=300, anchor="w")
+        tabla_logs.pack(side="left", fill="both", expand=True)
+
+        scrollbar = Scrollbar(frame_tabla, orient="vertical", command=tabla_logs.yview)
+        scrollbar.pack(side="right", fill="y")
+        tabla_logs.configure(yscrollcommand=scrollbar.set)
+
+        # Barra de búsqueda
+        frame_busqueda = Frame(frame_contenido, bg="#272643")
+        frame_busqueda.pack(pady=10)
+
+        Label(frame_busqueda, text="Buscar:", font=("Segoe UI", 12), bg="#272643", fg="white").grid(row=0, column=0, padx=5)
+        entrada_busqueda = Entry(frame_busqueda, width=30)
+        entrada_busqueda.grid(row=0, column=1, padx=5)
+        Button(frame_busqueda, text="Buscar", bg="#bae8e8", font=("Segoe UI", 12),
+            command=lambda: filtrar_logs(entrada_busqueda.get(), tabla_logs)).grid(row=0, column=2, padx=5)
+
+        # Botones de exportación
+        frame_botones = Frame(frame_contenido, bg="#272643")
+        frame_botones.pack(pady=10)
+
+        Button(frame_botones, text="Exportar Logs", bg="#bae8e8", font=("Segoe UI", 12),
+            command=lambda: exportar_logs(tabla_logs)).grid(row=0, column=0, padx=10)
+
+        cargar_logs(tabla_logs)
+
+    def cargar_logs(tabla):
+        conn = conexion_db()
+        if not conn:
+            return
+        try:
+            cursor = conn.cursor()
+            cursor.execute("SELECT * FROM logs")
+            registros = cursor.fetchall()
+            for registro in tabla.get_children():
+                tabla.delete(registro)
+            for registro in registros:
+                tabla.insert("", "end", values=registro)
+        except sqlite3.Error as e:
+            messagebox.showerror("Error", f"Error al cargar logs: {e}")
+        finally:
+            conn.close()
+
+    def filtrar_logs(termino, tabla):
+        conn = conexion_db()
+        if not conn:
+            return
+        try:
+            cursor = conn.cursor()
+            consulta = "SELECT * FROM logs WHERE usuario LIKE ? OR fecha_hora LIKE ? OR accion LIKE ?"
+            cursor.execute(consulta, (f"%{termino}%", f"%{termino}%", f"%{termino}%"))
+            registros = cursor.fetchall()
+            for registro in tabla.get_children():
+                tabla.delete(registro)
+            for registro in registros:
+                tabla.insert("", "end", values=registro)
+        except sqlite3.Error as e:
+            messagebox.showerror("Error", f"Error al filtrar logs: {e}")
+        finally:
+            conn.close()
+    
+    def exportar_logs(tabla):
+        # Obtener los registros de la tabla
+        registros = [tabla.item(fila)["values"] for fila in tabla.get_children()]
+
+        if not registros:
+            messagebox.showwarning("Sin datos", "No hay datos para exportar.")
+            return
+
+        # Seleccionar la carpeta donde guardar el archivo y permitir elegir nombre
+        ruta = filedialog.asksaveasfilename(defaultextension=".pdf", filetypes=[("Archivos PDF", "*.pdf")])
+
+        if not ruta:
+            messagebox.showwarning("No se seleccionó archivo", "No se ha seleccionado un archivo para guardar.")
+            return
+
+        try:
+            # Crear el PDF
+            c = canvas.Canvas(ruta, pagesize=letter)
+            width, height = letter
+
+            c.setFont("Helvetica-Bold", 14)
+            c.drawString(200, height - 50, "Reporte de Logs")
+
+            y_position = height - 80  # Posición inicial en Y
+
+            # Escribir encabezado de la tabla
+            c.setFont("Helvetica-Bold", 10)
+            c.drawString(50, y_position, "ID")
+            c.drawString(100, y_position, "Usuario")
+            c.drawString(250, y_position, "Fecha y Hora")
+            c.drawString(400, y_position, "Acción")
+
+            y_position -= 20
+            c.setFont("Helvetica", 10)
+
+            # Escribir los registros
+            for registro in registros:
+                if y_position < 50:  # Salto de página si se acaba el espacio
+                    c.showPage()
+                    c.setFont("Helvetica", 10)
+                    y_position = height - 50
+
+                c.drawString(50, y_position, str(registro[0]))  # ID
+                c.drawString(100, y_position, str(registro[1]))  # Usuario
+                c.drawString(250, y_position, str(registro[2]))  # Fecha y Hora
+                c.drawString(400, y_position, str(registro[3]))  # Acción
+                
+                y_position -= 20
+
+            c.save()
+
+            conn = conexion_db()
+            cursor = conn.cursor()
+            fecha_hora_actual = datetime.now().strftime("%d-%m-%Y %H:%M:%S")
+            cursor.execute("INSERT INTO logs (usuario, fecha_hora, accion) VALUES (?, ?, 'Exportación PDF Logs')", ("admin", fecha_hora_actual))
+            conn.commit()
+            conn.close()
+
+            # Mostrar mensaje de éxito
+            messagebox.showinfo("Éxito", f"Logs exportados correctamente a: {ruta}")
+
+        except Exception as e:
+            messagebox.showerror("Error", f"Error al exportar los logs: {e}")
 
     def regresar():
         print("Hola")
@@ -288,7 +558,6 @@ def ventana_administracion():
             )
             # Insertar fila en la tabla, asegurando que todos los datos (incluyendo fecha_registro) se muestren
             tabla.insert("", "end", values=fila_con_none)
-
 
     def limpiar_contenido():
         for widget in frame_contenido.winfo_children():
