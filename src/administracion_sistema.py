@@ -3,7 +3,7 @@ from datetime import datetime
 import os
 import sqlite3
 import tkinter as tk
-from tkinter import CENTER, LEFT, RIGHT, Canvas, Listbox, filedialog
+from tkinter import Listbox, filedialog
 from tkinter.ttk import Combobox
 from reportlab.lib.pagesizes import letter
 from reportlab.pdfgen import canvas
@@ -220,7 +220,6 @@ def ventana_administracion():
 
     def editar_informacion():
         limpiar_contenido()
-        print("HOla")
 
     def eliminar_usuario(tabla):
         seleccion = tabla.selection()
@@ -251,6 +250,14 @@ def ventana_administracion():
         finally:
             conn.close()
 
+    def dejar_de_seleccionar(tabla_membresias, tabla_servicios):
+        # Deseleccionar cualquier membresía seleccionada en la tabla
+        tabla_membresias.selection_remove(tabla_membresias.selection())
+
+        # Limpiar la tabla de servicios
+        for row in tabla_servicios.get_children():
+            tabla_servicios.delete(row)
+            
     # Función para cargar las membresías
     def cargar_membresias(tabla_membresias):
         # Conectar a la base de datos
@@ -263,7 +270,7 @@ def ventana_administracion():
                 m.id, 
                 m.nombre, 
                 m.precio, 
-                m.duracion_dias, 
+                m.duracion_dias,
                 m.estado
             FROM 
                 membresias m
@@ -281,8 +288,11 @@ def ventana_administracion():
         # Cerrar la conexión a la base de datos
         conn.close()
 
-    # Función para cargar los servicios de la membresía seleccionada
     def mostrar_servicios(tabla_servicios, membresia_id):
+        
+        if membresia_id is None:
+            messagebox.showwarning("Selección inválida", "Por favor, selecciona una membresía.")
+            return
         # Limpiar la tabla de servicios antes de cargar nuevos datos
         for row in tabla_servicios.get_children():
             tabla_servicios.delete(row)
@@ -291,97 +301,346 @@ def ventana_administracion():
         conn = conexion_db()
         cursor = conn.cursor()
 
-        # Obtener los servicios relacionados con la membresía seleccionada
-        cursor.execute('''
-            SELECT s.nombre
-            FROM servicios s
-            JOIN membresias_servicios ms ON s.id = ms.servicio_id
-            WHERE ms.membresia_id = ?
-        ''', (membresia_id,))
-        servicios = cursor.fetchall()
+        try:
+            # Obtener los servicios relacionados con la membresía seleccionada
+            cursor.execute('''
+                SELECT s.id, s.nombre
+                FROM servicios s
+                JOIN membresias_servicios ms ON s.id = ms.servicio_id
+                WHERE ms.membresia_id = ?
+            ''', (membresia_id,))
+            servicios = cursor.fetchall()
 
-        # Insertar los servicios en el Treeview
-        for servicio in servicios:
-            tabla_servicios.insert("", "end", values=(servicio[0],))
+            # Insertar los servicios en el Treeview
+            for servicio in servicios:
+                tabla_servicios.insert("", "end", values=(servicio[0], servicio[1]))
+        except Exception as e:
+            print(f"Error al obtener servicios: {e}")
+        finally:
+            # Cerrar la conexión a la base de datos
+            conn.close()
 
-        # Cerrar la conexión a la base de datos
-        conn.close()
+    def obtener_id_seleccionado(tabla):
+        seleccionado = tabla.selection()
+        if seleccionado:
+            valores = tabla.item(seleccionado[0], "values")
+            return valores[0] 
+        else:
+            return None 
 
     def cargar_administracion_parametros():
         limpiar_contenido()
+        # Obtener dimensiones de la pantalla
+        screen_width = frame_contenido.winfo_screenwidth()
+
+        # Calcular posiciones dinámicas
+        btn_width = 150
+        btn_height = 50
+
+        # Botón Mostrar Servicios
+        btn_mostrar_servicios = tk.Button(
+            frame_contenido, text="Mostrar Servicios", command=lambda: mostrar_servicios(tabla2, obtener_id_seleccionado(tabla1)),
+            font=("Segoe UI", 12), bg="#bae8e8", relief="flat"
+        )
+        btn_mostrar_servicios.place(
+            x=1025, y=100, width=btn_width, height=btn_height
+        )
+
+        # Botón Editar Membresía
+        btn_editar_membresia = tk.Button(
+            frame_contenido, text="Editar Membresías", command= mostrar_edicion_membresia,
+            font=("Segoe UI", 12), bg="#bae8e8", relief="flat"
+        )
+        btn_editar_membresia.place(
+            x=250, y=100, width=btn_width, height=btn_height
+        )
+        
+        # Botón Dejar de Seleccionar
+        btn_dejar_de_seleccionar = tk.Button(
+            frame_contenido, text="Dejar de Seleccionar", command=lambda: dejar_de_seleccionar(tabla1, tabla2),
+            font=("Segoe UI", 12), bg="#bae8e8", relief="flat"
+        )
+        btn_dejar_de_seleccionar.place(
+            x=500, y=100, width=btn_width, height=btn_height
+        )
+
+        # Tabla 1
+        frame_tabla1 = tk.Frame(frame_contenido, bg="lightblue")
+        frame_tabla1.place(
+            x=150,  # Posición horizontal (izquierda)
+            y=200,  # Centrado vertical
+            width=600,
+            height=500
+        )
 
 
+        label_tabla1 = tk.Label(frame_tabla1, text="Membresías", bg="lightblue", font=("Segoe UI", 12))
+        label_tabla1.pack(anchor="n", pady=5)
 
-    def mostrar_edicion_membresia(tabla_membresias):
+        columns_tabla1 = ("ID", "Nombre", "Precio", "Duración(días)", "Estado")
+        tabla1 = ttk.Treeview(frame_tabla1, columns=columns_tabla1, show="headings")
+        # Configurar el ancho de cada columna y permitir que se ajusten
+        tabla1.column("ID", anchor="center", width=50, stretch=True)  # Ancho fijo inicial
+        tabla1.column("Nombre", anchor="w", width=100, stretch=True)  # Más ancho para texto largo
+        tabla1.column("Precio", anchor="center", width=80, stretch=True)
+        tabla1.column("Duración(días)", anchor="center", width=120, stretch=True)
+        tabla1.column("Estado", anchor="center", width=120, stretch=True)
+
+        # Agregar encabezados
+        tabla1.heading("ID", text="ID")
+        tabla1.heading("Nombre", text="Nombre")
+        tabla1.heading("Precio", text="Precio")
+        tabla1.heading("Duración(días)", text="Duración(días)")
+        tabla1.heading("Estado", text="Estado")
+
+        # Mostrar la tabla
+        tabla1.pack(expand=True, fill="both")
+
+        # Tabla 2
+        frame_tabla2 = tk.Frame(frame_contenido, bg="lightblue")
+        frame_tabla2.place(
+            x=(screen_width / 2) + 50,  # Posición horizontal (derecha)
+            y=200,  # Centrado vertical
+            width=600,
+            height=500
+        )
+
+        label_tabla2 = tk.Label(frame_tabla2, text="Servicios", bg="lightblue", font=("Segoe UI", 12))
+        label_tabla2.pack(anchor="n", pady=5)
+
+        # Definir columnas como una tupla
+        columns_tabla2 = ("ID", "Servicios")
+        tabla2 = ttk.Treeview(frame_tabla2, columns=columns_tabla2, show="headings")
+
+        # Configurar el ancho de cada columna y permitir que se ajusten
+        tabla2.column("ID", anchor="center", stretch=True)  # Ancho inicial
+        tabla2.column("Servicios", anchor="center", stretch=True)  # Ancho inicial
+        # Agregar encabezados
+        tabla2.heading("ID", text="ID")
+        tabla2.heading("Servicios", text="Servicios")
+
+        # Mostrar la tabla en el frame
+        tabla2.pack(expand=True, fill="both")
+
+        # Cargar datos en tabla1
+        cargar_membresias(tabla1)
+
+    def mostrar_edicion_membresia():
         limpiar_contenido()
         
         Label(frame_contenido, text="Editar Membresía", font=("Segoe UI", 16), bg="#272643", fg="white").pack(pady=10)
         
+        # Frame principal de la ventana de edición
         frame_edicion = Frame(frame_contenido, bg="#272643")
-        frame_edicion.pack(pady=10, fill="x")
+        frame_edicion.pack(pady=10, fill="both", expand=True)
         
-        # Sección izquierda para edición de datos
+        # Frame de la parte izquierda (para la edición de duración, estado y servicios)
         frame_izquierda = Frame(frame_edicion, bg="#272643")
-        frame_izquierda.pack(side="left", padx=20)
+        frame_izquierda.pack(side="left", padx=20, fill="y", expand=True)
         
+        # Edición de duración
         Label(frame_izquierda, text="Duración (días):", bg="#272643", fg="white").pack()
         entry_duracion = Entry(frame_izquierda)
         entry_duracion.pack(pady=5)
         
+        # Estado de la membresía
         Label(frame_izquierda, text="Estado:", bg="#272643", fg="white").pack()
         estado_var = StringVar()
         estado_dropdown = ttk.Combobox(frame_izquierda, textvariable=estado_var, values=["Activo", "Inactivo"])
         estado_dropdown.pack(pady=5)
         
-        # Sección de selección de servicios
+        # Precio de la membresía
+        Label(frame_izquierda, text="Precio:", bg="#272643", fg="white").pack()
+        entry_precio = Entry(frame_izquierda)
+        entry_precio.pack(pady=5)
+        
+        # Sección para seleccionar servicios
         Label(frame_izquierda, text="Seleccionar Servicios:", bg="#272643", fg="white").pack()
         frame_servicios = Frame(frame_izquierda, bg="#272643")
-        frame_servicios.pack()
-        
-        lista_servicios = Listbox(frame_servicios, selectmode="multiple", height=5)
+        frame_servicios.pack(pady=5)
+
+        lista_servicios = Listbox(frame_servicios, selectmode="multiple", height=8, width=25)
         lista_servicios.pack(side="left", padx=5)
-        
+
         scrollbar_servicios = Scrollbar(frame_servicios, orient="vertical", command=lista_servicios.yview)
         scrollbar_servicios.pack(side="right", fill="y")
         lista_servicios.configure(yscrollcommand=scrollbar_servicios.set)
-        
+
         Button(frame_izquierda, text="Agregar Servicio", command=lambda: agregar_servicio(lista_servicios, tabla_servicios)).pack(pady=5)
+
+        # Botón para deseleccionar todos los servicios
+        Button(frame_izquierda, text="Deseleccionar Todos", command=lambda: deseleccionar_todos(lista_servicios)).pack(pady=5)
+
+        # Función para deseleccionar todos los elementos en la lista de servicios
+        def deseleccionar_todos(lista_servicios):
+            lista_servicios.selection_clear(0, "end")
         
-        # Tabla pequeña a la derecha para mostrar servicios seleccionados
+        # Frame de la parte derecha (tabla para mostrar servicios seleccionados)
         frame_derecha = Frame(frame_edicion, bg="#272643")
-        frame_derecha.pack(side="right", padx=20)
+        frame_derecha.pack(side="right", padx=20, fill="y", expand=True)
         
         Label(frame_derecha, text="Servicios Seleccionados", bg="#272643", fg="white").pack()
         
-        tabla_servicios = ttk.Treeview(frame_derecha, columns=("Servicio"), show="headings", height=5)
+        # Crear la tabla (Treeview) para mostrar servicios
+        tabla_servicios = ttk.Treeview(frame_derecha, columns=("ID", "Servicio"), show="headings", height=4)
+        tabla_servicios.heading("ID", text="ID")
         tabla_servicios.heading("Servicio", text="Servicio")
+        tabla_servicios.column("ID", width=50, anchor="center")
         tabla_servicios.column("Servicio", width=200, anchor="center")
-        tabla_servicios.pack()
-        
+        tabla_servicios.pack(fill="y", expand=True)
+
         Button(frame_derecha, text="Eliminar Servicio", command=lambda: eliminar_servicio(tabla_servicios)).pack(pady=5)
         
-        Button(frame_contenido, text="Guardar Cambios", bg="#bae8e8", font=("Segoe UI", 12),
-            command=lambda: guardar_cambios_membresia(entry_duracion, estado_var, tabla_servicios)).pack(pady=10)
+        # Tabla de las membresías
+        Label(frame_edicion, text="Membresías Disponibles", bg="#272643", fg="white").pack()
+        tabla_membresias = ttk.Treeview(frame_edicion, columns=("ID", "Nombre", "Precio", "Duración(días)", "Estado"), show="headings", height=4)
+        tabla_membresias.column("ID", width=50, anchor="center")
+        tabla_membresias.column("Nombre", width=150, anchor="w")
+        tabla_membresias.column("Precio", width=100, anchor="center")
+        tabla_membresias.column("Duración(días)", width=120, anchor="center")
+        tabla_membresias.column("Estado", width=100, anchor="center")
         
+        for col in tabla_membresias["columns"]:
+            tabla_membresias.heading(col, text=col)
+        
+        tabla_membresias.pack(fill="both", expand=True)
+        
+        def seleccionar_membresia(event):
+            item = tabla_membresias.selection()
+            if item:
+                # Cargar datos en las entries
+                datos_membresia = tabla_membresias.item(item)["values"]
+                entry_duracion.delete(0, "end")
+                entry_duracion.insert(0, datos_membresia[3])
+                entry_precio.delete(0, "end")
+                entry_precio.insert(0, datos_membresia[2])
+                estado_var.set(datos_membresia[4])
+                
+                mostrar_servicios(tabla_servicios, datos_membresia[0])
+        
+        tabla_membresias.bind("<ButtonRelease-1>", seleccionar_membresia)
+        
+        Button(frame_contenido, text="Guardar Cambios", bg="#bae8e8", font=("Segoe UI", 12),
+            command=lambda: guardar_cambios_membresia(entry_duracion, estado_var, entry_precio, tabla_servicios, obtener_id_seleccionado(tabla_membresias))).pack(pady=10, side="left", padx=10)
+        
+        Button(frame_contenido, text="Cancelar", bg="#bae8e8", font=("Segoe UI", 12), command=cargar_administracion_parametros).pack(pady=10, side="left", padx=10)
+        
+        # Llamar a la función para cargar los servicios disponibles en la tabla
         cargar_servicios_disponibles(lista_servicios)
+        cargar_membresias(tabla_membresias)
+
 
     def agregar_servicio(lista_servicios, tabla_servicios):
-        for index in lista_servicios.curselection():
-            servicio = lista_servicios.get(index)
-            tabla_servicios.insert("", "end", values=(servicio,))
+        try:
+            # Obtener el servicio seleccionado
+            seleccionados = lista_servicios.curselection()
+
+            if seleccionados:
+                # Conectar a la base de datos
+                conn = conexion_db()
+                cursor = conn.cursor()
+
+                # Iterar sobre los servicios seleccionados
+                for index in seleccionados:
+                    servicio_nombre = lista_servicios.get(index)
+
+                    # Consultar el ID del servicio por su nombre
+                    cursor.execute('''SELECT id FROM servicios WHERE nombre = ?''', (servicio_nombre,))
+                    servicio_id = cursor.fetchone()
+
+                    if servicio_id:
+                        # Agregar el servicio a la tabla de servicios seleccionados
+                        tabla_servicios.insert('', 'end', values=(servicio_id[0], servicio_nombre))
+
+                # Cerrar la conexión
+                conn.close()
+
+        except Exception as e:
+            print(f"Error al agregar servicio: {e}")
+
+    def cargar_servicios_disponibles(lista_servicios):
+        try:
+            # Conectar a la base de datos
+            conn = conexion_db()
+            cursor = conn.cursor()
+
+            # Consultar los servicios disponibles
+            cursor.execute('''SELECT nombre FROM servicios WHERE disponible = 'Si' ''')
+            servicios = cursor.fetchall()
+
+            # Limpiar la lista de servicios (si ya tiene elementos previos)
+            lista_servicios.delete(0, 'end')
+
+            # Llenar la lista con los servicios disponibles
+            for servicio in servicios:
+                lista_servicios.insert('end', servicio[0])
+
+            # Cerrar la conexión
+            conn.close()
+
+        except Exception as e:
+            print(f"Error al cargar los servicios disponibles: {e}")
 
     def eliminar_servicio(tabla_servicios):
         selected_item = tabla_servicios.selection()
         if selected_item:
             tabla_servicios.delete(selected_item)
+ 
+    def guardar_cambios_membresia(entry_duracion, estado_var, entry_precio, tabla_servicios, membresia_id):
+        try:
+            # Conectar a la base de datos
+            conn = conexion_db()
+            cursor = conn.cursor()
 
-    def cargar_servicios_disponibles(lista_servicios):
-        # Aquí se deben cargar los servicios disponibles desde la base de datos
-        pass
+            # Obtener los valores actualizados de los entrys y la tabla de servicios
+            duracion = entry_duracion.get()  # Duración en días
+            estado = estado_var.get()        # Estado de la membresía
+            precio = entry_precio.get()      # Precio de la membresía
+            
+            # 1. Actualizar la información de la membresía en la tabla `membresias`
+            cursor.execute('''
+                UPDATE membresias
+                SET duracion_dias = ?, estado = ?, precio = ?
+                WHERE id = ?
+            ''', (duracion, estado, precio, membresia_id))
+            
+            # 2. Actualizar los servicios asociados a la membresía
+            # Primero, eliminamos los servicios anteriores asociados a la membresía
+            cursor.execute('''
+                DELETE FROM membresias_servicios
+                WHERE membresia_id = ?
+            ''', (membresia_id,))
+            
+            # Ahora, insertamos los nuevos servicios seleccionados de la tabla
+            for fila in tabla_servicios.get_children():
+                # Acceder a la primera columna para obtener el ID del servicio
+                servicio_id = tabla_servicios.item(fila, 'values')[0]  # El ID del servicio
 
-    def guardar_cambios_membresia(entry_duracion, estado_var, tabla_servicios):
-        # Aquí se guardarán los cambios en la base de datos
-        pass
+                # Verificar si el servicio_id es un número entero (ID válido)
+                try:
+                    servicio_id = int(servicio_id)  # Intentar convertir a entero
+                except ValueError:
+                    print(f"El valor '{servicio_id}' no es un ID válido. Omitiendo este servicio.")
+                    continue  # Si no es un ID válido, lo omitimos
+
+                # Insertar el servicio en la base de datos
+                cursor.execute('''
+                    INSERT INTO membresias_servicios (membresia_id, servicio_id)
+                    VALUES (?, ?)
+                ''', (membresia_id, servicio_id))
+            
+            # Confirmar los cambios
+            conn.commit()
+            # Cerrar la conexión
+            conn.close()
+
+            messagebox.showinfo("Éxito", "Los datos se han actualizado correctamente")
+            mostrar_edicion_membresia()
+            
+        except Exception as e:
+            # Si hay algún error, mostrarlo
+            print(f"Error al guardar cambios: {e}")
+
 
     def cargar_auditoria():
         limpiar_contenido()
