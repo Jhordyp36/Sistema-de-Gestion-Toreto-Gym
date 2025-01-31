@@ -44,7 +44,7 @@ def ventana_membresias(usuario, callback):
             return
 
         cursor = conn.cursor()
-        cursor.execute("SELECT cedula, apellidos, nombres, estado, membresia_id FROM usuarios")
+        cursor.execute("SELECT cedula, apellidos, nombres, estado, membresia_id FROM usuarios WHERE rol = 'Cliente'")
         clientes = cursor.fetchall()
 
         # Limpiar tabla antes de cargar datos
