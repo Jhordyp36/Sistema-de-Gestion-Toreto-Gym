@@ -3,6 +3,7 @@ from tkinter import CENTER, Button, Frame, Label, PhotoImage, Tk
 from config.config import ICONS_DIR, IMAGES_DIR
 from src.utils.helpers import cargar_icono
 from src.administracion_sistema import ventana_administracion
+from src.servicios import GestionServicios 
 
 def crear_ventana_principal(usuario, callback):
     # Configuración de la ventana principal
@@ -30,7 +31,11 @@ def crear_ventana_principal(usuario, callback):
         print("En proceso")
 
     def abrir_servicios():
-        print("En proceso")
+        """Abre la ventana de gestión de servicios y permite regresar."""
+        ventana_principal.destroy()
+        root = Tk()
+        app = GestionServicios(root, callback_regreso=lambda: crear_ventana_principal(usuario, callback))
+        root.mainloop()
 
     def abrir_pagos_facturacion():
         print("En proceso")
