@@ -56,13 +56,13 @@ cursor.execute('''
 
 # Tabla Equipos del Gimnasio
 cursor.execute('''
-    CREATE TABLE IF NOT EXISTS equipos (
+    CREATE TABLE equipos (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         nombre TEXT NOT NULL UNIQUE,
         categoria_id INTEGER NOT NULL,
-        estado TEXT NOT NULL CHECK(estado IN ('Disponible', 'Mantenimiento')),
+        estado TEXT NOT NULL CHECK(estado IN ('Disponible', 'No Disponible', 'X')),
         FOREIGN KEY (categoria_id) REFERENCES categorias_equipos(id)
-    )
+    );
 ''')
 
 # Tabla Clases
