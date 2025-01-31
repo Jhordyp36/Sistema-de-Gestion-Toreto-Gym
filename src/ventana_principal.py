@@ -3,7 +3,8 @@ from tkinter import CENTER, Button, Frame, Label, PhotoImage, Tk
 from config.config import ICONS_DIR, IMAGES_DIR
 from src.utils.helpers import cargar_icono
 from src.administracion_sistema import ventana_administracion
-from src.servicios import GestionServicios 
+from src.servicios import GestionServicios
+from src.membresias import ventana_membresias
 
 def crear_ventana_principal(usuario, callback):
     # Configuración de la ventana principal
@@ -28,7 +29,9 @@ def crear_ventana_principal(usuario, callback):
 
     # Funciones de los botones
     def abrir_membresias():
-        print("En proceso")
+        """Abre la ventana de gestión de membresías."""
+        ventana_principal.destroy()
+        ventana_membresias(usuario, lambda: crear_ventana_principal(usuario, callback))
 
     def abrir_servicios():
         """Abre la ventana de gestión de servicios y permite regresar."""
