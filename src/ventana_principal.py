@@ -37,7 +37,7 @@ def crear_ventana_principal(usuario, callback):
 
     def abrir_administracion():
         ventana_principal.destroy()
-        ventana_administracion(lambda: crear_ventana_principal(usuario))
+        ventana_administracion(lambda: crear_ventana_principal(usuario, callback))
 
     def abrir_gestion_equipos():
         print("En proceso")

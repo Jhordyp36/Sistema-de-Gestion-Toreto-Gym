@@ -1070,5 +1070,5 @@ def ventana_administracion(callback):
     ventana.mainloop()
 
 def regresar(callback, ventana):
-        ventana.destroy()
-        callback()
+    ventana.destroy()
+    callback()
