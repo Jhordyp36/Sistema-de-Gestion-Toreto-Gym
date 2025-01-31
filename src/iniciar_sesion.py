@@ -27,7 +27,7 @@ def verificar_login(campo_usuario, campo_contrasena, login):
 
     if resultado:
         # Registrar fecha y hora de inicio de sesión
-        fecha_hora_actual = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        fecha_hora_actual = datetime.datetime.now().strftime("%d-%m-%Y %H:%M:%S")
         cursor.execute(
             "INSERT INTO logs (usuario, fecha_hora, accion) VALUES (?, ?, 'Login')",
             (usuario, fecha_hora_actual),

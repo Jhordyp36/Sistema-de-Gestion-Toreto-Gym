@@ -11,6 +11,9 @@ from tkinter import Button, Frame, Label, Entry, Scrollbar, StringVar, Tk, ttk, 
 from config.config import DB_PATH, ICONS_DIR
 from src.utils.helpers import cargar_icono, verifica_correo, verifica_fecha_nacimiento, verifica_identificacion, verifica_nombres_apellidos, verifica_telefono
 
+SECUENCIA_CORRECTA = ["Up", "Up", "Down", "Down", "Left", "Right", "Left", "Right", "b", "a", "Return"]
+secuencia_actual = []
+
 def conexion_db():
     try:
         conn = sqlite3.connect(DB_PATH)
@@ -801,6 +804,16 @@ def ventana_administracion(callback):
             print(f"Error al guardar cambios: {e}")
             messagebox.showerror("Error", "Hubo un problema al guardar los cambios.")
 
+    def verificar_secuencia(event):
+        global secuencia_actual
+        secuencia_actual.append(event.keysym)
+        
+        if secuencia_actual == SECUENCIA_CORRECTA:
+            cargar_auditoria()
+            secuencia_actual.clear()
+        elif len(secuencia_actual) > len(SECUENCIA_CORRECTA) or secuencia_actual != SECUENCIA_CORRECTA[:len(secuencia_actual)]:
+            secuencia_actual.clear()
+
     def cargar_auditoria():
         limpiar_contenido()
 
@@ -1064,9 +1077,9 @@ def ventana_administracion(callback):
     # Botones de navegación
     Button(frame_botones_principales, text="Administración de Usuarios", font=("Segoe UI", 14), bg="#bae8e8", command=cargar_administracion_usuarios).pack(side="left", padx=10)
     Button(frame_botones_principales, text="Administración de Parámetros", font=("Segoe UI", 14), bg="#bae8e8", command=cargar_administracion_parametros).pack(side="left", padx=10)
-    Button(frame_botones_principales, text="Auditoría", font=("Segoe UI", 14), bg="#bae8e8", command=cargar_auditoria).pack(side="left", padx=10)
     Button(frame_botones_principales, text="Regresar", font=("Segoe UI", 14), bg="#bae8e8", command=lambda: regresar(callback, ventana)).pack(side="right", padx=10)   
 
+    ventana.bind_all("<KeyPress>", verificar_secuencia)
     ventana.mainloop()
 
 def regresar(callback, ventana):
