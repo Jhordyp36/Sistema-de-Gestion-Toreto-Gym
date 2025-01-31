@@ -11,16 +11,15 @@ from config.config import DB_PATH, ICONS_DIR
 from src.utils.helpers import cargar_icono
 
 def conexion_db():
-    """
-    Establece la conexión con la base de datos SQLite.
-    Devuelve la conexión si es exitosa, o None si hay un error.
-    """
+    """Establece la conexión con SQLite y evita bloqueos."""
     try:
-        conn = sqlite3.connect(DB_PATH)
+        conn = sqlite3.connect(DB_PATH, timeout=10)  # Esperar hasta 10 segundos si está bloqueada
+        conn.execute("PRAGMA journal_mode=WAL;")  # Permite acceso concurrente
         return conn
     except sqlite3.Error as e:
         print(f"Error al conectar con la base de datos: {e}")
         return None
+
 
 class GestionServicios:
     """
@@ -47,6 +46,10 @@ class GestionServicios:
         self.var_disponibilidad = tk.StringVar()
         self.var_clase_id = tk.StringVar()
         self.var_equipo_id = tk.StringVar()
+        self.var_dia = tk.StringVar()
+        self.var_hora = tk.StringVar()
+        self.var_lugar = tk.StringVar()
+        self.var_id_filtro = tk.StringVar()  # Para filtrar por ID
 
         # Configurar la interfaz gráfica
         self.configurar_interfaz()
@@ -54,20 +57,31 @@ class GestionServicios:
 
     def configurar_interfaz(self):
         """Configura la interfaz gráfica de usuario con Tkinter."""
-        
         default_font = ("Segoe UI", 12)
         header_font = ("Segoe UI", 14, "bold")
 
         # Título
         tk.Label(self.root, text="Gestión de Servicios", font=header_font, bg="#272643", fg="#bae8e8").pack(pady=20)
 
+        # Frame principal
+        frame_principal = tk.Frame(self.root, bg="#272643")
+        frame_principal.pack(fill="both", expand=True, padx=20, pady=10)
+
+        # 🔍 Filtrar por ID (Ubicado a la izquierda o derecha según prefieras)
+        frame_filtro = tk.Frame(frame_principal, bg="#272643")
+        frame_filtro.pack(side="right", anchor="n", padx=20, pady=10)
+
+        tk.Label(frame_filtro, text="Filtrar por ID:", font=default_font, bg="#272643", fg="#bae8e8").pack(anchor="w", pady=5)
+        tk.Entry(frame_filtro, textvariable=self.var_id_filtro, font=default_font, width=15).pack(pady=5)
+        tk.Button(frame_filtro, text="Consultar Servicios", font=default_font, bg="#bae8e8", command=self.cargar_servicios).pack(pady=5)
+
         # Frame para los campos de entrada
-        frame_form = tk.Frame(self.root, bg="#272643")
-        frame_form.pack(pady=10)
+        frame_form = tk.Frame(frame_principal, bg="#272643")
+        frame_form.pack(side="left", padx=20, pady=10)
 
         # Campos del formulario
-        campos = ["Nombre:", "Descripción:", "Disponibilidad (Sí, No):", "Clase ID:", "Equipo ID:"]
-        variables = [self.var_nombre, self.var_descripcion, self.var_disponibilidad, self.var_clase_id, self.var_equipo_id]
+        campos = ["Nombre:", "Descripción:", "Disponibilidad (Sí, No):", "Clase ID:", "Equipo ID:", "Día:", "Hora:", "Lugar:"]
+        variables = [self.var_nombre, self.var_descripcion, self.var_disponibilidad, self.var_clase_id, self.var_equipo_id, self.var_dia, self.var_hora, self.var_lugar]
         self.entries = []
 
         for i, (campo, variable) in enumerate(zip(campos, variables)):
@@ -76,31 +90,36 @@ class GestionServicios:
             entry.grid(row=i, column=1, padx=10, pady=5)
             self.entries.append(entry)
 
-        # Botones de acción
+        # Frame para botones
         frame_botones = tk.Frame(self.root, bg="#272643")
         frame_botones.pack(pady=10)
 
-        btn_registrar = tk.Button(frame_botones, text="Registrar Servicio", font=default_font, bg="#bae8e8", command=self.registrar_servicio)
-        btn_registrar.grid(row=0, column=0, padx=10)
+        tk.Button(frame_botones, text="Registrar Servicio", font=default_font, bg="#bae8e8", command=self.registrar_servicio).pack(side="left", padx=10)
+        tk.Button(frame_botones, text="Editar Servicio", font=default_font, bg="#bae8e8", command=self.editar_servicio).pack(side="left", padx=10)
+        tk.Button(frame_botones, text="Borrar Servicio", font=default_font, bg="#ff6961", command=self.borrar_servicio).pack(side="left", padx=10)
+        tk.Button(frame_botones, text="Limpiar", font=default_font, bg="#e3f6f5", command=self.limpiar_campos).pack(side="left", padx=10)
+        tk.Button(frame_botones, text="Regresar", font=default_font, bg="#e3f6f5", command=self.regresar).pack(side="left", padx=10)
 
-        btn_editar = tk.Button(frame_botones, text="Editar Servicio", font=default_font, bg="#bae8e8", command=self.editar_servicio)
-        btn_editar.grid(row=0, column=1, padx=10)
+        # Tabla y scrollbars
+        frame_tabla = tk.Frame(self.root)
+        frame_tabla.pack(pady=10, fill="both", expand=True)
 
-        btn_consultar = tk.Button(frame_botones, text="Consultar Servicios", font=default_font, bg="#bae8e8", command=self.cargar_servicios)
-        btn_consultar.grid(row=0, column=2, padx=10)
+        scrollbar_y = ttk.Scrollbar(frame_tabla, orient="vertical")
+        scrollbar_x = ttk.Scrollbar(frame_tabla, orient="horizontal")
 
-        # ✅ Botón de regresar correctamente configurado
-        btn_regresar = tk.Button(frame_botones, text="Regresar", font=default_font, bg="#e3f6f5", command=self.regresar)
-        btn_regresar.grid(row=0, column=3, padx=10)
+        self.tree = ttk.Treeview(frame_tabla, columns=("ID", "Nombre", "Descripción", "Disponible", "Clase ID", "Equipo ID", "Día", "Hora", "Lugar"),
+                                show="headings", height=10, yscrollcommand=scrollbar_y.set, xscrollcommand=scrollbar_x.set)
+        self.tree.pack(side="left", fill="both", expand=True)
 
-        # Tabla para mostrar los servicios registrados
-        self.tree = ttk.Treeview(self.root, columns=("ID", "Nombre", "Descripción", "Disponible", "Clase ID", "Equipo ID"), show="headings", height=10)
-        self.tree.pack(pady=20)
+        scrollbar_y.config(command=self.tree.yview)
+        scrollbar_y.pack(side="right", fill="y")
 
-        for col in ("ID", "Nombre", "Descripción", "Disponible", "Clase ID", "Equipo ID"):
+        scrollbar_x.config(command=self.tree.xview)
+        scrollbar_x.pack(side="bottom", fill="x")
+
+        for col in ("ID", "Nombre", "Descripción", "Disponible", "Clase ID", "Equipo ID", "Día", "Hora", "Lugar"):
             self.tree.heading(col, text=col)
 
-        # Evento para autocompletar campos al seleccionar un servicio en la tabla
         self.tree.bind("<<TreeviewSelect>>", self.autocompletar_campos)
 
     def regresar(self):
@@ -121,20 +140,39 @@ class GestionServicios:
         disponible = self.var_disponibilidad.get()
         clase_id = self.var_clase_id.get()
         equipo_id = self.var_equipo_id.get()
+        dia = self.var_dia.get()
+        hora = self.var_hora.get()
+        lugar = self.var_lugar.get()
 
-        if not nombre or not disponible:
-            messagebox.showerror("Error", "El nombre y la disponibilidad son obligatorios.")
+        if not nombre or not disponible or not dia or not hora or not lugar:
+            messagebox.showerror("Error", "El nombre, disponibilidad, día, hora y lugar son obligatorios.")
             return
 
         cursor = conn.cursor()
-        cursor.execute("INSERT INTO servicios (nombre, descripcion, disponible, clase_id, equipo_id) VALUES (?, ?, ?, ?, ?)", 
-                       (nombre, descripcion, disponible, clase_id, equipo_id))
-        conn.commit()
-        conn.close()
 
-        messagebox.showinfo("Éxito", "Servicio registrado correctamente.")
-        self.cargar_servicios()
-        self.limpiar_campos()
+        # 🔍 Validar si el servicio ya existe
+        cursor.execute("SELECT id FROM servicios WHERE nombre = ?", (nombre,))
+        servicio_existente = cursor.fetchone()
+
+        if servicio_existente:
+            messagebox.showerror("Error", "Ya existe un servicio con este nombre.")
+            conn.close()
+            return
+
+        # ✅ Insertar nuevo servicio
+        try:
+            cursor.execute(
+                "INSERT INTO servicios (nombre, descripcion, disponible, clase_id, equipo_id, dia, hora, lugar) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                (nombre, descripcion, disponible, clase_id, equipo_id, dia, hora, lugar)
+            )
+            conn.commit()
+            messagebox.showinfo("Éxito", "Servicio registrado correctamente.")
+            self.cargar_servicios()
+            self.limpiar_campos()
+        except sqlite3.Error as e:
+            messagebox.showerror("Error", f"No se pudo registrar el servicio: {e}")
+        finally:
+            conn.close()
 
     def cargar_servicios(self):
         """Carga los servicios desde la base de datos y los muestra en la tabla."""
@@ -143,11 +181,20 @@ class GestionServicios:
             messagebox.showerror("Error", "No se pudo conectar a la base de datos.")
             return
 
-        self.tree.delete(*self.tree.get_children())
+        self.tree.delete(*self.tree.get_children())  
+
         cursor = conn.cursor()
-        cursor.execute("SELECT * FROM servicios")
-        for fila in cursor.fetchall():
+        query = "SELECT id, nombre, descripcion, disponible, clase_id, equipo_id, dia, hora, lugar FROM servicios"
+
+        if self.var_id_filtro.get():  
+            query += " WHERE id = ?"
+            cursor.execute(query, (self.var_id_filtro.get(),))
+        else:
+            cursor.execute(query)
+
+        for fila in cursor.fetchall():  
             self.tree.insert("", "end", values=fila)
+
         conn.close()
 
     def editar_servicio(self):
@@ -164,6 +211,9 @@ class GestionServicios:
         disponible = self.var_disponibilidad.get()
         clase_id = self.var_clase_id.get()
         equipo_id = self.var_equipo_id.get()
+        dia = self.var_dia.get()
+        hora = self.var_hora.get()
+        lugar = self.var_lugar.get()
 
         conn = conexion_db()
         if conn is None:
@@ -171,8 +221,8 @@ class GestionServicios:
             return
 
         cursor = conn.cursor()
-        cursor.execute("UPDATE servicios SET nombre=?, descripcion=?, disponible=?, clase_id=?, equipo_id=? WHERE id=?", 
-                       (nombre, descripcion, disponible, clase_id, equipo_id, id_seleccionado))
+        cursor.execute("UPDATE servicios SET nombre=?, descripcion=?, disponible=?, clase_id=?, equipo_id=?, dia=?, hora=?, lugar=? WHERE id=?", 
+                    (nombre, descripcion, disponible, clase_id, equipo_id, dia, hora, lugar, id_seleccionado))
         conn.commit()
         conn.close()
 
@@ -180,6 +230,35 @@ class GestionServicios:
         self.cargar_servicios()
         self.limpiar_campos()
 
+    def borrar_servicio(self):
+        """Elimina un servicio seleccionado o por ID ingresado en el filtro."""
+        conn = conexion_db()
+        if conn is None:
+            messagebox.showerror("Error", "No se pudo conectar a la base de datos.")
+            return
+
+        id_seleccionado = self.var_id_filtro.get()
+
+        if not id_seleccionado:
+            seleccion = self.tree.selection()
+            if not seleccion:
+                messagebox.showerror("Error", "Seleccione un servicio de la tabla o ingrese un ID.")
+                return
+            id_seleccionado = self.tree.item(seleccion, "values")[0]
+
+        confirmacion = messagebox.askyesno("Confirmar", f"¿Está seguro de que desea eliminar el servicio con ID {id_seleccionado}?")
+        if not confirmacion:
+            return
+
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM servicios WHERE id = ?", (id_seleccionado,))
+        conn.commit()
+        conn.close()
+
+        messagebox.showinfo("Éxito", "Servicio eliminado correctamente.")
+        self.cargar_servicios()
+        self.limpiar_campos()
+    
     def autocompletar_campos(self, event):
         """Autocompleta los campos del formulario cuando se selecciona un servicio en la tabla."""
         seleccion = self.tree.selection()
@@ -191,16 +270,17 @@ class GestionServicios:
             self.var_disponibilidad.set(valores[3])
             self.var_clase_id.set(valores[4])
             self.var_equipo_id.set(valores[5])
+            self.var_dia.set(valores[6])  # Nuevo campo
+            self.var_hora.set(valores[7])  # Nuevo campo
+            self.var_lugar.set(valores[8])  # Nuevo campo
 
     def limpiar_campos(self):
-        """Limpia los cuadros de texto y deselecciona la fila en la tabla."""
-        self.var_id.set("")
-        self.var_nombre.set("")
-        self.var_descripcion.set("")
-        self.var_disponibilidad.set("")
-        self.var_clase_id.set("")
-        self.var_equipo_id.set("")
+        """Limpia los cuadros de texto y resetea la tabla."""
+        self.var_id_filtro.set("")
+        for var in [self.var_nombre, self.var_descripcion, self.var_disponibilidad, self.var_clase_id, self.var_equipo_id, self.var_dia, self.var_hora, self.var_lugar]:
+            var.set("")
         self.tree.selection_remove(self.tree.selection())
+        self.cargar_servicios()
 
 if __name__ == "__main__":
     def regresar_a_principal():
