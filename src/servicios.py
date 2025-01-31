@@ -67,28 +67,24 @@ class GestionServicios:
         frame_principal = tk.Frame(self.root, bg="#272643")
         frame_principal.pack(fill="both", expand=True, padx=20, pady=10)
 
-        # 🔍 Filtrar por ID (Ubicado a la izquierda o derecha según prefieras)
-        frame_filtro = tk.Frame(frame_principal, bg="#272643")
-        frame_filtro.pack(side="right", anchor="n", padx=20, pady=10)
-
-        tk.Label(frame_filtro, text="Filtrar por ID:", font=default_font, bg="#272643", fg="#bae8e8").pack(anchor="w", pady=5)
-        tk.Entry(frame_filtro, textvariable=self.var_id_filtro, font=default_font, width=15).pack(pady=5)
-        tk.Button(frame_filtro, text="Consultar Servicios", font=default_font, bg="#bae8e8", command=self.cargar_servicios).pack(pady=5)
-
         # Frame para los campos de entrada
-        frame_form = tk.Frame(frame_principal, bg="#272643")
-        frame_form.pack(side="left", padx=20, pady=10)
+        frame_form = tk.Frame(frame_principal, bg="#272643", width=500, height=300)
+        frame_form.pack(side="left", padx=20, pady=10, fill="both", expand=True)
+        frame_form.grid_propagate(False)  # Evita que se agrande automáticamente
 
-        # Campos del formulario
+        # Campos del formulario con límite de ancho
         campos = ["Nombre:", "Descripción:", "Disponibilidad (Sí, No):", "Clase ID:", "Equipo ID:", "Día:", "Hora:", "Lugar:"]
         variables = [self.var_nombre, self.var_descripcion, self.var_disponibilidad, self.var_clase_id, self.var_equipo_id, self.var_dia, self.var_hora, self.var_lugar]
         self.entries = []
 
         for i, (campo, variable) in enumerate(zip(campos, variables)):
-            tk.Label(frame_form, text=campo, font=default_font, bg="#272643", fg="#bae8e8").grid(row=i, column=0, padx=10, pady=5, sticky="w")
-            entry = tk.Entry(frame_form, textvariable=variable, font=default_font, width=40)
-            entry.grid(row=i, column=1, padx=10, pady=5)
+            tk.Label(frame_form, text=campo, font=default_font, bg="#272643", fg="#bae8e8").grid(row=i, column=0, padx=5, pady=5, sticky="w")
+            
+            entry = tk.Entry(frame_form, textvariable=variable, font=default_font, width=30)  # Reducimos ancho si es necesario
+            entry.grid(row=i, column=1, padx=5, pady=5, sticky="ew")  # Ajuste sin desbordarse
             self.entries.append(entry)
+
+        frame_form.grid_columnconfigure(1, weight=1)  # Permite ajuste sin expansión descontrolada
 
         # Frame para botones
         frame_botones = tk.Frame(self.root, bg="#272643")
@@ -100,25 +96,18 @@ class GestionServicios:
         tk.Button(frame_botones, text="Limpiar", font=default_font, bg="#e3f6f5", command=self.limpiar_campos).pack(side="left", padx=10)
         tk.Button(frame_botones, text="Regresar", font=default_font, bg="#e3f6f5", command=self.regresar).pack(side="left", padx=10)
 
-        # Tabla y scrollbars
-        frame_tabla = tk.Frame(self.root)
+        # Frame para la tabla
+        frame_tabla = tk.Frame(self.root, width=800, height=300)
         frame_tabla.pack(pady=10, fill="both", expand=True)
-
-        scrollbar_y = ttk.Scrollbar(frame_tabla, orient="vertical")
-        scrollbar_x = ttk.Scrollbar(frame_tabla, orient="horizontal")
+        frame_tabla.grid_propagate(False)  # Mantiene el tamaño definido
 
         self.tree = ttk.Treeview(frame_tabla, columns=("ID", "Nombre", "Descripción", "Disponible", "Clase ID", "Equipo ID", "Día", "Hora", "Lugar"),
-                                show="headings", height=10, yscrollcommand=scrollbar_y.set, xscrollcommand=scrollbar_x.set)
+                                show="headings", height=10)
         self.tree.pack(side="left", fill="both", expand=True)
-
-        scrollbar_y.config(command=self.tree.yview)
-        scrollbar_y.pack(side="right", fill="y")
-
-        scrollbar_x.config(command=self.tree.xview)
-        scrollbar_x.pack(side="bottom", fill="x")
 
         for col in ("ID", "Nombre", "Descripción", "Disponible", "Clase ID", "Equipo ID", "Día", "Hora", "Lugar"):
             self.tree.heading(col, text=col)
+            self.tree.column(col, width=100, anchor="center")
 
         self.tree.bind("<<TreeviewSelect>>", self.autocompletar_campos)
 
