@@ -1,5 +1,6 @@
 from datetime import datetime
 import os
+import re
 import sqlite3
 from tkinter import filedialog
 from reportlab.lib.pagesizes import letter
@@ -37,9 +38,6 @@ def ventana_administracion(callback):
     # Contenedor principal dinámico
     frame_contenido = Frame(ventana, bg="#272643")
     frame_contenido.pack(fill="both", expand=True, padx=20, pady=20)
-    
-    def cargar_administracion_parametros():
-        limpiar_contenido()
 
     def verificar_secuencia(event):
         global secuencia_actual
@@ -137,12 +135,24 @@ def ventana_administracion(callback):
             messagebox.showwarning("Sin datos", "No hay datos para exportar.")
             return
 
-        # Seleccionar la carpeta donde guardar el archivo y permitir elegir nombre
-        ruta = filedialog.asksaveasfilename(defaultextension=".pdf", filetypes=[("Archivos PDF", "*.pdf")])
+        while True:
+            # Seleccionar la carpeta donde guardar el archivo y permitir elegir nombre
+            ruta = filedialog.asksaveasfilename(defaultextension=".pdf", filetypes=[("Archivos PDF", "*.pdf")])
 
-        if not ruta:
-            messagebox.showwarning("No se seleccionó archivo", "No se ha seleccionado un archivo para guardar.")
-            return
+            if not ruta:
+                messagebox.showwarning("No se seleccionó archivo", "No se ha seleccionado un archivo para guardar.")
+                return
+
+            # Extraer el nombre del archivo sin la ruta completa
+            nombre_archivo = ruta.split("/")[-1].split("\\")[-1]  # Compatibilidad con Windows y Linux
+
+            # Validar que el nombre no esté vacío, no tenga solo puntos o comas, y contenga al menos una letra
+            if not nombre_archivo.strip() or not re.search(r'[A-Za-z]', nombre_archivo) or re.match(r'^[.,]+$', nombre_archivo):
+                messagebox.showerror("Nombre de archivo no válido", "El nombre del archivo no puede estar vacío, contener solo puntos o comas, y debe incluir al menos una letra.")
+            elif re.match(r'^[\.,]+$', nombre_archivo):  # Verifica si el nombre está compuesto solo por puntos o comas
+                messagebox.showerror("Nombre de archivo no válido", "El nombre del archivo no puede contener solo puntos o comas.")
+            else:
+                break  # Salir del bucle si el nombre es válido
 
         try:
             # Crear el PDF
@@ -193,12 +203,12 @@ def ventana_administracion(callback):
         except Exception as e:
             messagebox.showerror("Error", f"Error al exportar los logs: {e}")
 
+
     def limpiar_contenido():
         for widget in frame_contenido.winfo_children():
             widget.destroy()
     
     # Botones de navegación
-    Button(frame_botones_principales, text="Administración de Parámetros", font=("Segoe UI", 14), bg="#bae8e8", command=cargar_administracion_parametros).pack(side="left", padx=10)
     Button(frame_botones_principales, text="Regresar", font=("Segoe UI", 14), bg="#bae8e8", command=lambda: regresar(callback, ventana)).pack(side="right", padx=10)   
 
     ventana.bind_all("<KeyPress>", verificar_secuencia)
