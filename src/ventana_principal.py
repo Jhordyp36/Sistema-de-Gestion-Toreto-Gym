@@ -2,6 +2,7 @@ import os
 from tkinter import CENTER, Button, Frame, Label, PhotoImage, Tk
 from config.config import ICONS_DIR, IMAGES_DIR
 from src.membresias import ventana_membresias
+from src.gestion_equipos import ventana_gestion_equipos
 from src.utils.helpers import cargar_icono
 from src.administracion_sistema import ventana_administracion
 from src.servicios import GestionServicios 
@@ -50,6 +51,11 @@ def crear_ventana_principal(usuario, callback):
 
     def abrir_gestion_equipos():
         print("En proceso")
+        
+    def abrir_gestion_equipos():
+        ventana_principal.destroy()
+        ventana_gestion_equipos(lambda: crear_ventana_principal(usuario, callback))
+
 
     # Creación de botones
     boton_membresias = Button(
