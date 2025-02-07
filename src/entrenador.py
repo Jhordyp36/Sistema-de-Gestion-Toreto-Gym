@@ -40,6 +40,8 @@ def ventana_entrenadores(usuario, callback):
     btn_editar = Button(frame_botones_principales, text="Editar Información", font=("Segoe UI", 14), bg="#bae8e8", command=lambda: editar_entrenador())
     btn_editar.pack(side="left", padx=10)
 
+    btn_eliminar = Button(frame_botones_principales, text="Eliminar Entrenador", font=("Segoe UI", 14), bg="red", fg="white", command=lambda: eliminar_entrenador())
+    btn_eliminar.pack(side="left", padx=10)  
     
     btn_regresar = Button(frame_botones_principales, text="Regresar", font=("Segoe UI", 14), bg="red", fg="white", command=lambda: regresar(callback, ventana))
     btn_regresar.pack(side="left", padx=10)
@@ -78,20 +80,64 @@ def ventana_entrenadores(usuario, callback):
             return
         cursor = conn.cursor()
         cursor.execute("""
-            SELECT u.cedula, u.nombres, u.apellidos, u.telefono, u.correo, 
-                   u.fecha_nacimiento, u.estado, 
-                   COALESCE(s.nombre, 'Sin Servicio'), u.fecha_registro
+            SELECT 
+                u.cedula, 
+                u.nombres, 
+                u.apellidos, 
+                u.telefono, 
+                u.correo, 
+                u.fecha_nacimiento, 
+                u.estado, 
+                COALESCE(GROUP_CONCAT(s.nombre, ', '), 'Sin Servicio'),
+                u.fecha_registro
             FROM usuarios u
             LEFT JOIN membresias_servicios ms ON u.membresia_id = ms.membresia_id
             LEFT JOIN servicios s ON ms.servicio_id = s.id
             WHERE u.rol = 'Entrenador'
-        """)
+            GROUP BY u.cedula
+        """)  # Agrupado por cédula y servicios concatenados
         datos = cursor.fetchall()
         conn.close()
         for item in tabla.get_children():
             tabla.delete(item)
         for fila in datos:
             tabla.insert("", "end", values=fila)
+
+    def eliminar_entrenador():
+        """Elimina un entrenador seleccionado de la base de datos."""
+        seleccionado = tabla.selection()
+        if not seleccionado:
+            messagebox.showerror("Error", "Seleccione un entrenador para eliminar")
+            return
+
+        item = tabla.item(seleccionado[0])
+        cedula = item['values'][0]
+
+        respuesta = messagebox.askyesno("Confirmar Eliminación", f"¿Está seguro de eliminar al entrenador con cédula {cedula}?")
+        if not respuesta:
+            return
+
+        conn = conexion_db()
+        cursor = conn.cursor()
+        try:
+            # Eliminar servicios relacionados con la membresía del entrenador
+            cursor.execute("""
+                DELETE FROM membresias_servicios 
+                WHERE membresia_id = (SELECT membresia_id FROM usuarios WHERE cedula = ?)
+            """, (cedula,))
+
+            # Eliminar al entrenador
+            cursor.execute("DELETE FROM usuarios WHERE cedula = ?", (cedula,))
+            conn.commit()
+
+            messagebox.showinfo("Éxito", "Entrenador eliminado correctamente")
+            cargar_datos_entrenadores()  # Refrescar la tabla
+
+        except sqlite3.Error as e:
+            messagebox.showerror("Error", f"No se pudo eliminar el entrenador: {e}")
+
+        finally:
+            conn.close()
 
     def editar_entrenador():
         """Abre una ventana para editar la información de un entrenador, membresía y sus servicios."""
@@ -162,7 +208,7 @@ def ventana_entrenadores(usuario, callback):
         Label(frame_der, text="Servicios Disponibles", font=("Segoe UI", 14, "bold"), fg="white", bg="#272643").pack(pady=5)
 
         scroll_y = Scrollbar(frame_der, orient="vertical")
-        lista_servicios = Listbox(frame_der, selectmode="multiple", height=12, yscrollcommand=scroll_y.set)
+        lista_servicios = Listbox(frame_der, selectmode="single", height=12, yscrollcommand=scroll_y.set)
         scroll_y.config(command=lista_servicios.yview)
 
         lista_servicios.pack(side="left", fill="both", expand=True)
@@ -246,44 +292,54 @@ def ventana_entrenadores(usuario, callback):
         btn_regresar = Button(ventana_editar, text="Regresar", font=("Segoe UI", 12), bg="#bae8e8", command=ventana_editar.destroy)
         btn_regresar.pack(pady=5)
 
-    def registrar_entrenador():
-        """Abre una ventana para registrar un nuevo entrenador."""
-        ventana_registro = tk.Toplevel()
-        ventana_registro.title("Registrar Entrenador")
-        ventana_registro.geometry("600x500")
-        ventana_registro.configure(bg="#272643")
+    def editar_entrenador():
+        """Abre una ventana para editar la información de un entrenador, membresía y sus servicios."""
+        seleccionado = tabla.selection()
+        if not seleccionado:
+            messagebox.showerror("Error", "Seleccione un entrenador para editar")
+            return
+        
+        item = tabla.item(seleccionado[0])
+        datos = item['values']
 
-        # --- Contenedor Izquierdo (Formulario) ---
-        frame_izq = Frame(ventana_registro, bg="#272643", padx=20, pady=20)
+        ventana_editar = tk.Toplevel(ventana)
+        ventana_editar.title("Editar Entrenador")
+        ventana_editar.geometry("900x500")
+        ventana_editar.configure(bg="#272643")
+
+        # Marco Izquierdo - Información del Entrenador
+        frame_izq = Frame(ventana_editar, bg="#272643", padx=20, pady=20)
         frame_izq.pack(side="left", fill="y")
 
-        Label(frame_izq, text="Registrar Nuevo Entrenador", font=("Segoe UI", 14, "bold"), fg="white", bg="#272643").pack(pady=5)
+        Label(frame_izq, text="Editar Información del Entrenador", font=("Segoe UI", 14, "bold"), fg="white", bg="#272643").pack(pady=5)
 
         Label(frame_izq, text="Cédula:", bg="#272643", fg="white").pack(anchor="w")
         entry_cedula = Entry(frame_izq)
+        entry_cedula.insert(0, datos[0])
+        entry_cedula.config(state="disabled")  # No se puede modificar la cédula
         entry_cedula.pack(fill="x")
 
         Label(frame_izq, text="Nombres:", bg="#272643", fg="white").pack(anchor="w")
         entry_nombres = Entry(frame_izq)
+        entry_nombres.insert(0, datos[1])
         entry_nombres.pack(fill="x")
 
         Label(frame_izq, text="Apellidos:", bg="#272643", fg="white").pack(anchor="w")
         entry_apellidos = Entry(frame_izq)
+        entry_apellidos.insert(0, datos[2])
         entry_apellidos.pack(fill="x")
 
         Label(frame_izq, text="Teléfono:", bg="#272643", fg="white").pack(anchor="w")
         entry_telefono = Entry(frame_izq)
+        entry_telefono.insert(0, datos[3])
         entry_telefono.pack(fill="x")
 
         Label(frame_izq, text="Correo:", bg="#272643", fg="white").pack(anchor="w")
         entry_correo = Entry(frame_izq)
+        entry_correo.insert(0, datos[4])
         entry_correo.pack(fill="x")
 
-        Label(frame_izq, text="Fecha de Nacimiento:", bg="#272643", fg="white").pack(anchor="w")
-        entry_fecha_nacimiento = DateEntry(frame_izq, background="darkblue", foreground="white", date_pattern="dd-mm-yyyy")
-        entry_fecha_nacimiento.pack(fill="x")
-
-        # --- Selección de Membresía ---
+        # Membresía
         Label(frame_izq, text="Membresía:", bg="#272643", fg="white").pack(anchor="w")
         combo_membresia = ttk.Combobox(frame_izq, state="readonly")
         combo_membresia.pack(fill="x")
@@ -296,17 +352,16 @@ def ventana_entrenadores(usuario, callback):
         conn.close()
 
         combo_membresia["values"] = membresias
-        if membresias:
-            combo_membresia.set(membresias[0])
+        combo_membresia.set(datos[6])  # Establecer membresía actual
 
-        # --- Contenedor Derecho (Servicios) ---
-        frame_der = Frame(ventana_registro, bg="#272643", padx=20, pady=20)
+        # Marco Derecho - Lista de Servicios
+        frame_der = Frame(ventana_editar, bg="#272643", padx=20, pady=20)
         frame_der.pack(side="right", fill="both", expand=True)
 
         Label(frame_der, text="Servicios Disponibles", font=("Segoe UI", 14, "bold"), fg="white", bg="#272643").pack(pady=5)
 
         scroll_y = Scrollbar(frame_der, orient="vertical")
-        lista_servicios = Listbox(frame_der, selectmode="multiple", height=12, yscrollcommand=scroll_y.set)
+        lista_servicios = Listbox(frame_der, selectmode="single", height=12, yscrollcommand=scroll_y.set)  # Cambiado a "single"
         scroll_y.config(command=lista_servicios.yview)
 
         lista_servicios.pack(side="left", fill="both", expand=True)
@@ -318,70 +373,87 @@ def ventana_entrenadores(usuario, callback):
         cursor.execute("SELECT nombre FROM servicios")
         servicios = cursor.fetchall()
 
+        # Cargar servicios disponibles en la lista
         for servicio in servicios:
             lista_servicios.insert("end", servicio[0])
 
+        # Seleccionar el servicio ya asignado
+        cursor.execute("""
+            SELECT s.nombre FROM servicios s
+            JOIN membresias_servicios ms ON s.id = ms.servicio_id
+            JOIN usuarios u ON ms.membresia_id = u.membresia_id
+            WHERE u.cedula = ?
+        """, (datos[0],))
+        
+        servicio_asignado = cursor.fetchone()
         conn.close()
 
-        def guardar_entrenador():
-            """Guarda el nuevo entrenador en la base de datos evitando duplicaciones."""
-            cedula = entry_cedula.get()
-            nombres = entry_nombres.get()
-            apellidos = entry_apellidos.get()
-            telefono = entry_telefono.get()
-            correo = entry_correo.get()
-            fecha_nacimiento = entry_fecha_nacimiento.get()
-            membresia = combo_membresia.get()
+        if servicio_asignado:
+            servicio_asignado = servicio_asignado[0]
+            for idx in range(lista_servicios.size()):
+                if lista_servicios.get(idx) == servicio_asignado:
+                    lista_servicios.selection_set(idx)
+                    break
 
-            if not (cedula and nombres and apellidos and telefono and correo and fecha_nacimiento and membresia):
+        def actualizar_entrenador():
+            """Actualiza la información del entrenador en la base de datos."""
+            nuevo_nombres = entry_nombres.get()
+            nuevo_apellidos = entry_apellidos.get()
+            nuevo_telefono = entry_telefono.get()
+            nuevo_correo = entry_correo.get()
+            nueva_membresia = combo_membresia.get()
+            cedula = datos[0]
+
+            if not (nuevo_nombres and nuevo_apellidos and nuevo_telefono and nuevo_correo and nueva_membresia):
                 messagebox.showerror("Error", "Todos los campos deben estar llenos")
                 return
 
             conn = conexion_db()
             cursor = conn.cursor()
-
             try:
-                # Verificar si ya existe la cédula
-                cursor.execute("SELECT cedula FROM usuarios WHERE cedula = ?", (cedula,))
-                if cursor.fetchone():
-                    messagebox.showerror("Error", "La cédula ya está registrada en el sistema.")
-                    return
-
                 # Obtener ID de la membresía seleccionada
-                cursor.execute("SELECT id FROM membresias WHERE nombre = ?", (membresia,))
-                membresia_id = cursor.fetchone()[0]
+                cursor.execute("SELECT id FROM membresias WHERE nombre = ?", (nueva_membresia,))
+                membresia_id = cursor.fetchone()
+                if not membresia_id:
+                    messagebox.showerror("Error", "La membresía seleccionada no existe.")
+                    return
+                membresia_id = membresia_id[0]
 
-                # Insertar entrenador
+                # Actualizar información del entrenador
                 cursor.execute("""
-                    INSERT INTO usuarios (cedula, nombres, apellidos, telefono, correo, fecha_nacimiento, rol, estado, membresia_id)
-                    VALUES (?, ?, ?, ?, ?, ?, 'Entrenador', 'A', ?)
-                """, (cedula, nombres, apellidos, telefono, correo, fecha_nacimiento, membresia_id))
+                    UPDATE usuarios 
+                    SET nombres = ?, apellidos = ?, telefono = ?, correo = ?, membresia_id = ? 
+                    WHERE cedula = ?
+                """, (nuevo_nombres, nuevo_apellidos, nuevo_telefono, nuevo_correo, membresia_id, cedula))
 
-                # Insertar servicios seleccionados
-                for idx in lista_servicios.curselection():
-                    servicio_nombre = lista_servicios.get(idx)
+                # Actualizar servicio asignado
+                cursor.execute("DELETE FROM membresias_servicios WHERE membresia_id = (SELECT membresia_id FROM usuarios WHERE cedula = ?)", (cedula,))
+                
+                # Insertar el nuevo servicio seleccionado
+                seleccion = lista_servicios.curselection()
+                if seleccion:
+                    servicio_nombre = lista_servicios.get(seleccion[0])
                     cursor.execute("""
                         INSERT INTO membresias_servicios (membresia_id, servicio_id)
                         VALUES (?, (SELECT id FROM servicios WHERE nombre = ?))
                     """, (membresia_id, servicio_nombre))
 
                 conn.commit()
-                messagebox.showinfo("Éxito", "Entrenador registrado correctamente")
-                ventana_registro.destroy()
-
+                messagebox.showinfo("Éxito", "Entrenador actualizado correctamente")
+                ventana_editar.destroy()
+                cargar_datos_entrenadores()
             except sqlite3.Error as e:
-                messagebox.showerror("Error", f"No se pudo registrar el entrenador: {e}")
-
+                messagebox.showerror("Error", f"No se pudo actualizar el entrenador: {e}")
             finally:
                 conn.close()
 
-        # Botón para guardar
-        btn_guardar = Button(ventana_registro, text="Guardar", font=("Segoe UI", 14), bg="#bae8e8", command=guardar_entrenador)
-        btn_guardar.pack(pady=20)
+        # Botón de actualización
+        btn_actualizar = Button(ventana_editar, text="Actualizar", font=("Segoe UI", 12), bg="#bae8e8", command=actualizar_entrenador)
+        btn_actualizar.pack(pady=10)
 
-        # Botón para regresar sin guardar
-        btn_cancelar = Button(ventana_registro, text="Cancelar", font=("Segoe UI", 14), bg="red", fg="white", command=ventana_registro.destroy)
-        btn_cancelar.pack(pady=5)
+        # Botón para regresar a la ventana general sin cerrar el programa
+        btn_regresar = Button(ventana_editar, text="Regresar", font=("Segoe UI", 12), bg="#bae8e8", command=ventana_editar.destroy)
+        btn_regresar.pack(pady=5)
 
     cargar_datos_entrenadores()
 
