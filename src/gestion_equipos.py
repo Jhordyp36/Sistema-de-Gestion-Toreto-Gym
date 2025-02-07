@@ -92,7 +92,7 @@ def ventana_gestion_equipos(callback):
 
         tk.Label(frame_formulario, text="Estado del Equipo:", font=("Segoe UI", 12), bg="#272643", fg="#ffffff").grid(row=2, column=0, padx=10, pady=5, sticky="w")
         estado_var = StringVar()
-        estado_dropdown = ttk.Combobox(frame_formulario, textvariable=estado_var, values=('Disponible', 'No disponible', 'X'))
+        estado_dropdown = ttk.Combobox(frame_formulario, textvariable=estado_var, values=('Disponible', 'No Disponible', 'X'))
         estado_dropdown.grid(row=2, column=1, padx=10, pady=5, sticky="w")
 
         def guardar_equipo():
@@ -110,8 +110,8 @@ def ventana_gestion_equipos(callback):
                 messagebox.showerror("Error", "La categoría del equipo debe ser una cadena de hasta 50 caracteres.")
                 return
 
-            if estado_equipo not in ['Disponible', 'No disponible', 'X']:
-                messagebox.showerror("Error", "El estado del equipo debe ser 'Disponible', 'No disponible' o 'X'.")
+            if estado_equipo not in ['Disponible', 'No Disponible', 'X']:
+                messagebox.showerror("Error", "El estado del equipo debe ser 'Disponible', 'No Disponible' o 'X'.")
                 return
 
             try:
@@ -174,7 +174,7 @@ def ventana_gestion_equipos(callback):
         tk.Label(ventana_actualizar, text="¿Está seguro de actualizar el estado del equipo?", font=("Segoe UI", 12), bg="#272643", fg="#ffffff").pack(pady=10)
 
         estado_var = StringVar()
-        estado_dropdown = ttk.Combobox(ventana_actualizar, textvariable=estado_var, values=('Disponible', 'No disponible', 'X'))
+        estado_dropdown = ttk.Combobox(ventana_actualizar, textvariable=estado_var, values=('Disponible', 'No Disponible', 'X'))
         estado_dropdown.pack(pady=10)
 
         conn = conexion_db()
@@ -343,7 +343,7 @@ def ventana_gestion_equipos(callback):
                     messagebox.showerror("Error", "El equipo está inactivo.")
                     return
 
-                if estado_equipo == 'No disponible':
+                if estado_equipo == 'No Disponible':
                     messagebox.showerror("Error", "El equipo no está disponible para uso.")
                     return
 
