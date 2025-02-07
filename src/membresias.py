@@ -487,9 +487,10 @@ def ventana_membresias(usuario, callback):
             telefono = entry_telefono.get().strip()
             rol = "Cliente"
             fecha_nacimiento = f"{entry_dia.get()}-{entry_mes.get()}-{entry_ano.get()}"
-            membresia = entry_membresia.get()  # Obtener el valor de la membresía seleccionada
+            membresia = entry_membresia.get().strip()  # Obtener el valor de la membresía seleccionada
             fecha_hora_actual = datetime.now().strftime("%d-%m-%Y %H:%M:%S")
-            
+
+            # Validaciones
             if not verifica_identificacion(cedula):
                 messagebox.showerror("Error", "La cédula ingresada no es válida.")
                 return
@@ -497,7 +498,7 @@ def ventana_membresias(usuario, callback):
             if not verifica_nombres_apellidos(nombres) or not verifica_nombres_apellidos(apellidos):
                 messagebox.showerror("Error", "Los nombres y apellidos deben ser válidos.")
                 return
-            
+
             if not verifica_correo(correo):
                 messagebox.showerror("Error", "El correo electrónico no es válido.")
                 return
@@ -505,16 +506,27 @@ def ventana_membresias(usuario, callback):
             if not verifica_telefono(telefono):
                 messagebox.showerror("Error", "El número de teléfono no es válido.")
                 return
-            
+
             if not verifica_fecha_nacimiento(fecha_nacimiento):
                 messagebox.showerror("Error", "La fecha de nacimiento no es válida o la persona es menor de edad.")
                 return
-            
-            
+
+            if not membresia:
+                messagebox.showerror("Error", "No se ha seleccionado una membresía.")
+                return
+
             # Guardar en la base de datos
             try:
                 conn = conexion_db()
                 cursor = conn.cursor()
+
+                # Verificar si la cédula ya está registrada
+                cursor.execute("SELECT COUNT(*) FROM usuarios WHERE cedula = ?", (cedula,))
+                if cursor.fetchone()[0] > 0:
+                    messagebox.showerror("Error", "La cédula ingresada ya existe en el sistema.")
+                    return
+
+                # Insertar nuevo usuario
                 cursor.execute(
                     """INSERT INTO usuarios (cedula, apellidos, nombres, telefono, correo, rol, membresia_id, fecha_nacimiento, fecha_registro)
                     VALUES (?, ?, ?, ?, ?, ?, (SELECT id FROM membresias WHERE nombre = ?), ?, ?)""",
@@ -531,7 +543,7 @@ def ventana_membresias(usuario, callback):
                 messagebox.showerror("Error", f"No se pudo registrar el cliente: {e}")
             finally:
                 conn.close()
-        
+
         tk.Button(frame_formulario, text="Guardar", font=("Segoe UI", 12), command=guardar_cliente).grid(row=10, column=0, padx=10, pady=10, sticky="e")
         tk.Button(frame_formulario, text="Cancelar", font=("Segoe UI", 12), command=cargar_vista_general).grid(row=10, column=1, padx=10, pady=10, sticky="e")
 
