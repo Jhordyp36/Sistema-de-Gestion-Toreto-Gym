@@ -2,6 +2,7 @@ import os
 from tkinter import CENTER, Button, Frame, Label, PhotoImage, Tk
 from config.config import ICONS_DIR, IMAGES_DIR
 from src.membresias import ventana_membresias
+from src.entrenador import ventana_entrenadores
 from src.gestion_equipos import ventana_gestion_equipos
 from src.utils.helpers import cargar_icono
 from src.administracion_sistema import ventana_administracion
@@ -52,9 +53,9 @@ def crear_ventana_principal(usuario, callback):
     def abrir_gestion_equipos():
         print("En proceso")
         
-    def abrir_gestion_equipos():
+    def abrir_gestion_entrenadores():
         ventana_principal.destroy()
-        ventana_gestion_equipos(lambda: crear_ventana_principal(usuario, callback))
+        ventana_entrenadores(usuario, lambda: crear_ventana_principal(usuario, callback))
 
 
     # Creación de botones
@@ -127,6 +128,20 @@ def crear_ventana_principal(usuario, callback):
         bd=2
     )
     boton_gestion_equipos.grid(row=2, column=0, padx=10, pady=10)
+
+    boton_gestion_entrenadores = Button(
+        frame_botones,
+        text="Gestión de Entrenadores",
+        font=("Segoe UI", 12),
+        width=20,
+        height=2,
+        bg="#bae8e8",
+        fg="black",
+        command=abrir_gestion_entrenadores,
+        relief="groove",
+        bd=2
+    )
+    boton_gestion_entrenadores.grid(row=2, column=0, padx=10, pady=10)
 
     boton_cerrar = Button(
         frame_botones,

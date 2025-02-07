@@ -1,229 +1,264 @@
-import sys
 import os
 import sqlite3
 import tkinter as tk
-from tkinter import ttk, messagebox
-
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
-
+from tkinter import Button, Entry, Frame, Label, Listbox, Scrollbar, StringVar, Tk, messagebox, ttk
 from config.config import DB_PATH, ICONS_DIR
 from src.utils.helpers import cargar_icono
 
-class GestionEntrenadores:
-    def __init__(self, root):
-        """Inicializa la ventana de gestión de entrenadores."""
-        self.root = root
-        self.root.title("Gestión de Entrenadores")
-        self.root.state("zoomed")
-        self.root.configure(bg="#272643")
-        cargar_icono(self.root, os.path.join(ICONS_DIR, "Icono.ico"))
-
-        # Estilo para botones ttk
-        self.style = ttk.Style()
-        self.style.configure("TButton", font=("Segoe UI", 12))  # Aplicar estilo a todos los botones ttk
-        
-        # Frame para botones principales
-        self.frame_botones_principales = tk.Frame(self.root, bg="#2c698d", pady=5)
-        self.frame_botones_principales.pack(side="top", fill="x")
-
-        # Contenedor principal
-        self.frame_contenido = tk.Frame(self.root, bg="#272643")
-        self.frame_contenido.pack(fill="both", expand=True, padx=20, pady=20)
-        
-        # Crear variables para las tablas
-        self.tabla_entrenadores = None
-        self.tabla_servicios = None
-        
-        # Botón para cambiar vistas (Corrección: eliminar bg y usar style)
-        ttk.Button(self.frame_botones_principales, text="Vista General", style="TButton",
-                   command=self.cargar_vista_general).pack(side="left", padx=10)
-
-        # Cargar la vista general al iniciar
-        self.cargar_vista_general()
-
-    def conexion_db(self):
-        """Establece la conexión con SQLite."""
-        try:
-            conn = sqlite3.connect(DB_PATH, timeout=10)
-            return conn
-        except sqlite3.Error as e:
-            messagebox.showerror("Error de Conexión", f"No se pudo conectar a la base de datos:\n{e}")
-            return None
-
-    def limpiar_contenido(self):
-        """Elimina todos los widgets de frame_contenido para cambiar la vista."""
-        for widget in self.frame_contenido.winfo_children():
-            widget.destroy()
-
-    def obtener_id_seleccionado(self, tabla):
-        """Devuelve el ID (cédula) del entrenador seleccionado en la tabla."""
-        seleccionado = tabla.selection()
-        if seleccionado:
-            return tabla.item(seleccionado[0], "values")[0]  # Primera columna es la cédula
+def conexion_db():
+    """Conecta a la base de datos SQLite."""
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        return conn
+    except sqlite3.Error as e:
+        print(f"Error al conectar con la base de datos: {e}")
         return None
 
-    def mostrar_servicios(self, tabla_servicios, entrenador_id):
-        """Muestra los servicios asignados al entrenador seleccionado."""
-        if entrenador_id is None:
-            messagebox.showwarning("Selección", "Por favor, seleccione un entrenador.")
-            return
+def ventana_entrenadores(usuario, callback):
+    """ Crea la ventana de Entrenadores. """
+    ventana = Tk()
+    ventana.title("Administración de Entrenadores")
+    ventana.state("zoomed")
+    ventana.resizable(False, False)
+    ventana.configure(bg="#272643")
+    cargar_icono(ventana, os.path.join(ICONS_DIR, "Icono.ico"))
 
-        conn = self.conexion_db()
-        if conn is None:
-            return
+    # HEADER
+    frame_header = Frame(ventana, bg="#2C3E50", pady=10)
+    frame_header.pack(fill="x")
+    Label(frame_header, text="Gestión de Entrenadores y Servicios", font=("Segoe UI", 18, "bold"), fg="white", bg="#2C3E50").pack()
 
-        try:
+    # BOTONES PRINCIPALES
+    frame_botones_principales = Frame(ventana, bg="#2c698d", pady=10)
+    frame_botones_principales.pack(fill="x", padx=20)
+
+    def mostrar_mensaje_registro():
+        """Muestra un mensaje indicando cómo se registran los entrenadores."""
+        messagebox.showinfo("Información", "No es necesario registrar entrenadores manualmente. Los usuarios asignados como entrenadores aparecerán automáticamente en la lista.")    
+    
+    btn_registrar = Button(frame_botones_principales, text="Registrar Entrenador", font=("Segoe UI", 14), bg="#bae8e8", command=mostrar_mensaje_registro)
+    btn_registrar.pack(side="left", padx=10)    
+    
+    btn_editar = Button(frame_botones_principales, text="Editar Información", font=("Segoe UI", 14), bg="#bae8e8", command=lambda: editar_entrenador())
+    btn_editar.pack(side="left", padx=10)
+
+    btn_regresar = Button(frame_botones_principales, text="Regresar", font=("Segoe UI", 14), bg="red", fg="white", command=lambda: regresar(callback, ventana))
+    btn_regresar.pack(side="left", padx=10)
+    
+    # CONTENEDOR PRINCIPAL
+    frame_contenido = Frame(ventana, bg="#272643")
+    frame_contenido.pack(fill="both", expand=True, padx=20, pady=20)
+
+    # TÍTULO DE LA TABLA
+    Label(frame_contenido, text="Lista de Entrenadores", font=("Segoe UI", 16, "bold"), fg="white", bg="#272643").pack(pady=10)
+
+    # FRAME DE LA TABLA
+    frame_tabla = Frame(frame_contenido, bg="#272643")
+    frame_tabla.pack(expand=True, fill="both", padx=20, pady=10)
+
+    scroll_x = Scrollbar(frame_tabla, orient="horizontal")
+    scroll_y = Scrollbar(frame_tabla, orient="vertical")
+
+    columnas = ("Cédula", "Nombres", "Apellidos", "Teléfono", "Correo", "Estado", "Membresía", "Servicios", "Fecha Registro")
+    tabla = ttk.Treeview(frame_tabla, columns=columnas, show="headings", xscrollcommand=scroll_x.set, yscrollcommand=scroll_y.set)
+    tabla.grid(row=1, column=0, columnspan=3, padx=10, pady=10, sticky="nsew")
+
+    scroll_x.config(command=tabla.xview)
+    scroll_y.config(command=tabla.yview)
+    scroll_x.grid(row=2, column=0, columnspan=3, sticky="ew")
+    scroll_y.grid(row=1, column=3, sticky="ns")
+
+    for col in columnas:
+        tabla.heading(col, text=col.capitalize())
+        tabla.column(col, width=150, anchor="center")
+
+    def cargar_datos_entrenadores():
+        """Carga en la tabla los entrenadores registrados."""
+        conn = conexion_db()
+        if not conn:
+            return
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT u.cedula, u.nombres, u.apellidos, u.telefono, u.correo, u.estado, 
+                   COALESCE(m.nombre, 'Sin membresía') AS membresia, 
+                   COALESCE(GROUP_CONCAT(s.nombre, ', '), 'Sin Servicios') AS servicios, 
+                   u.fecha_registro
+            FROM usuarios u
+            LEFT JOIN membresias m ON u.membresia_id = m.id
+            LEFT JOIN membresias_servicios ms ON u.membresia_id = ms.membresia_id
+            LEFT JOIN servicios s ON ms.servicio_id = s.id
+            WHERE u.rol = 'Entrenador'
+            GROUP BY u.cedula
+        """)
+        datos = cursor.fetchall()
+        conn.close()
+        for item in tabla.get_children():
+            tabla.delete(item)
+        for fila in datos:
+            tabla.insert("", "end", values=fila)
+
+    def editar_entrenador():
+        """Abre una ventana para editar la información de un entrenador, membresía y sus servicios."""
+        seleccionado = tabla.selection()
+        if not seleccionado:
+            messagebox.showerror("Error", "Seleccione un entrenador para editar")
+            return
+        
+        item = tabla.item(seleccionado[0])
+        datos = item['values']
+
+        ventana_editar = tk.Toplevel(ventana)
+        ventana_editar.title("Editar Entrenador")
+        ventana_editar.geometry("900x500")
+        ventana_editar.configure(bg="#272643")
+
+        # Marco Izquierdo - Información del Entrenador
+        frame_izq = Frame(ventana_editar, bg="#272643", padx=20, pady=20)
+        frame_izq.pack(side="left", fill="y")
+
+        Label(frame_izq, text="Editar Información del Entrenador", font=("Segoe UI", 14, "bold"), fg="white", bg="#272643").pack(pady=5)
+
+        Label(frame_izq, text="Cédula:", bg="#272643", fg="white").pack(anchor="w")
+        entry_cedula = Entry(frame_izq)
+        entry_cedula.insert(0, datos[0])
+        entry_cedula.config(state="disabled")  # No se puede modificar la cédula
+        entry_cedula.pack(fill="x")
+
+        Label(frame_izq, text="Nombres:", bg="#272643", fg="white").pack(anchor="w")
+        entry_nombres = Entry(frame_izq)
+        entry_nombres.insert(0, datos[1])
+        entry_nombres.pack(fill="x")
+
+        Label(frame_izq, text="Apellidos:", bg="#272643", fg="white").pack(anchor="w")
+        entry_apellidos = Entry(frame_izq)
+        entry_apellidos.insert(0, datos[2])
+        entry_apellidos.pack(fill="x")
+
+        Label(frame_izq, text="Teléfono:", bg="#272643", fg="white").pack(anchor="w")
+        entry_telefono = Entry(frame_izq)
+        entry_telefono.insert(0, datos[3])
+        entry_telefono.pack(fill="x")
+
+        Label(frame_izq, text="Correo:", bg="#272643", fg="white").pack(anchor="w")
+        entry_correo = Entry(frame_izq)
+        entry_correo.insert(0, datos[4])
+        entry_correo.pack(fill="x")
+
+        # Membresía
+        Label(frame_izq, text="Membresía:", bg="#272643", fg="white").pack(anchor="w")
+        combo_membresia = ttk.Combobox(frame_izq, state="readonly")
+        combo_membresia.pack(fill="x")
+
+        # Obtener Membresías Disponibles
+        conn = conexion_db()
+        cursor = conn.cursor()
+        cursor.execute("SELECT nombre FROM membresias")
+        membresias = [m[0] for m in cursor.fetchall()]
+        conn.close()
+
+        combo_membresia["values"] = membresias
+        combo_membresia.set(datos[6])  # Establecer membresía actual
+
+        # Marco Derecho - Lista de Servicios
+        frame_der = Frame(ventana_editar, bg="#272643", padx=20, pady=20)
+        frame_der.pack(side="right", fill="both", expand=True)
+
+        Label(frame_der, text="Servicios Disponibles", font=("Segoe UI", 14, "bold"), fg="white", bg="#272643").pack(pady=5)
+
+        scroll_y = Scrollbar(frame_der, orient="vertical")
+        lista_servicios = Listbox(frame_der, selectmode="multiple", height=12, yscrollcommand=scroll_y.set)
+        scroll_y.config(command=lista_servicios.yview)
+
+        lista_servicios.pack(side="left", fill="both", expand=True)
+        scroll_y.pack(side="right", fill="y")
+
+        # Cargar los servicios desde la base de datos
+        conn = conexion_db()
+        cursor = conn.cursor()
+        cursor.execute("SELECT nombre FROM servicios")
+        servicios = cursor.fetchall()
+
+        # Cargar servicios disponibles en la lista
+        for servicio in servicios:
+            lista_servicios.insert("end", servicio[0])
+
+        # Seleccionar los servicios ya asignados
+        cursor.execute("""
+            SELECT s.nombre FROM servicios s
+            JOIN membresias_servicios ms ON s.id = ms.servicio_id
+            JOIN usuarios u ON ms.membresia_id = u.membresia_id
+            WHERE u.cedula = ?
+        """, (datos[0],))
+        
+        servicios_asignados = cursor.fetchall()
+        conn.close()
+
+        servicios_asignados = [s[0] for s in servicios_asignados]
+
+        for idx in range(lista_servicios.size()):
+            if lista_servicios.get(idx) in servicios_asignados:
+                lista_servicios.selection_set(idx)
+
+        def actualizar_entrenador():
+            """Actualiza la información del entrenador en la base de datos."""
+            nuevo_nombres = entry_nombres.get()
+            nuevo_apellidos = entry_apellidos.get()
+            nuevo_telefono = entry_telefono.get()
+            nuevo_correo = entry_correo.get()
+            nueva_membresia = combo_membresia.get()
+            cedula = datos[0]
+
+            if not (nuevo_nombres and nuevo_apellidos and nuevo_telefono and nuevo_correo and nueva_membresia):
+                messagebox.showerror("Error", "Todos los campos deben estar llenos")
+                return
+
+            conn = conexion_db()
             cursor = conn.cursor()
-            cursor.execute("""
-                SELECT s.id, s.nombre
-                FROM servicios s
-                JOIN entrenadores_servicios es ON s.id = es.servicio_id
-                WHERE es.entrenador_id = ?
-            """, (entrenador_id,))
-            servicios = cursor.fetchall()
+            try:
+                # Obtener ID de la membresía seleccionada
+                cursor.execute("SELECT id FROM membresias WHERE nombre = ?", (nueva_membresia,))
+                membresia_id = cursor.fetchone()[0]
 
-            # Limpiar la tabla
-            for item in tabla_servicios.get_children():
-                tabla_servicios.delete(item)
+                cursor.execute("""
+                    UPDATE usuarios SET nombres = ?, apellidos = ?, telefono = ?, correo = ?, membresia_id = ? WHERE cedula = ?
+                """, (nuevo_nombres, nuevo_apellidos, nuevo_telefono, nuevo_correo, membresia_id, cedula))
 
-            # Insertar datos en la tabla
-            for servicio in servicios:
-                tabla_servicios.insert("", "end", values=servicio)
+                # Actualizar servicios asignados
+                cursor.execute("DELETE FROM membresias_servicios WHERE membresia_id = (SELECT membresia_id FROM usuarios WHERE cedula = ?)", (cedula,))
+                
+                for idx in lista_servicios.curselection():
+                    servicio_nombre = lista_servicios.get(idx)
+                    cursor.execute("""
+                        INSERT INTO membresias_servicios (membresia_id, servicio_id)
+                        VALUES ((SELECT membresia_id FROM usuarios WHERE cedula = ?), (SELECT id FROM servicios WHERE nombre = ?))
+                    """, (cedula, servicio_nombre))
 
-        except sqlite3.Error as e:
-            messagebox.showerror("Error", f"Error al obtener servicios: {e}")
-        finally:
-            conn.close()
+                conn.commit()
+                messagebox.showinfo("Éxito", "Entrenador actualizado correctamente")
+                ventana_editar.destroy()
+                cargar_datos_entrenadores()
+            except sqlite3.Error as e:
+                messagebox.showerror("Error", f"No se pudo actualizar el entrenador: {e}")
+            finally:
+                conn.close()
 
-    def cargar_entrenadores_tabla(self):
-        """Carga la lista de entrenadores en la tabla."""
-        conn = self.conexion_db()
-        if conn is None:
-            return
+        # Botón de actualización
+        btn_actualizar = Button(ventana_editar, text="Actualizar", font=("Segoe UI", 12), bg="#bae8e8", command=actualizar_entrenador)
+        btn_actualizar.pack(pady=10)
 
-        try:
-            cursor = conn.cursor()
-            cursor.execute("""
-                SELECT cedula, nombres, apellidos, correo, telefono, clase_asignada
-                FROM usuarios
-                WHERE rol = 'Entrenador' AND estado = 'A'
-            """)
-            entrenadores = cursor.fetchall()
+        # Botón para regresar a la ventana general sin cerrar el programa
+        btn_regresar = Button(ventana_editar, text="Regresar", font=("Segoe UI", 12), bg="#bae8e8", command=ventana_editar.destroy)
+        btn_regresar.pack(pady=5)
 
-            # Limpiar la tabla
-            for item in self.tabla_entrenadores.get_children():
-                self.tabla_entrenadores.delete(item)
+    cargar_datos_entrenadores()
 
-            # Insertar entrenadores en la tabla
-            for entrenador in entrenadores:
-                self.tabla_entrenadores.insert("", "end", values=entrenador)
+    # FOOTER
+    frame_footer = Frame(ventana, bg="#2C3E50", pady=10)
+    frame_footer.pack(fill="x", side="bottom")
+    Label(frame_footer, text="Desarrollado por Toreto-Gym", font=("Segoe UI", 12), fg="white", bg="#2C3E50").pack()
 
-        except sqlite3.Error as e:
-            messagebox.showerror("Error", f"Error al obtener entrenadores: {e}")
-        finally:
-            conn.close()
+    ventana.mainloop()
 
-    def cargar_clases_combobox(self, combobox):
-        """Carga las clases disponibles en el combobox."""
-        conn = self.conexion_db()
-        if conn is None:
-            return
-
-        try:
-            cursor = conn.cursor()
-            cursor.execute("SELECT nombre FROM clases WHERE estado = 'Activo'")
-            clases = [row[0] for row in cursor.fetchall()]
-            combobox["values"] = clases
-        except sqlite3.Error as e:
-            messagebox.showerror("Error", f"Error al obtener clases: {e}")
-        finally:
-            conn.close()
-
-    def cargar_editar_entrenadores(self):
-        """Carga la vista de edición de entrenadores en la misma pantalla."""
-        self.limpiar_contenido()
-
-        tk.Label(self.frame_contenido, text="Editar Entrenador", font=("Segoe UI", 16), bg="#272643", fg="white").pack(pady=10)
-
-        frame_edicion = tk.Frame(self.frame_contenido, bg="#272643")
-        frame_edicion.pack(pady=10, fill="both", expand=True)
-
-        frame_izquierda = tk.Frame(frame_edicion, bg="#272643")
-        frame_izquierda.pack(side="left", padx=20, fill="y", expand=True)
-
-        var_cedula = tk.StringVar()
-        var_nombre = tk.StringVar()
-        var_apellido = tk.StringVar()
-        var_correo = tk.StringVar()
-        var_telefono = tk.StringVar()
-        var_clase = tk.StringVar()
-
-        campos = [
-            ("Cédula:", var_cedula),
-            ("Nombre:", var_nombre),
-            ("Apellido:", var_apellido),
-            ("Correo:", var_correo),
-            ("Teléfono:", var_telefono),
-            ("Clase Asignada:", var_clase)
-        ]
-
-        for i, (label, var) in enumerate(campos):
-            tk.Label(frame_izquierda, text=label, bg="#272643", fg="white", font=("Segoe UI", 12)).grid(row=i, column=0, sticky="w", padx=5, pady=5)
-
-            if label == "Clase Asignada:":
-                combo_clases = ttk.Combobox(frame_izquierda, textvariable=var, state="readonly", width=30)
-                combo_clases.grid(row=i, column=1, padx=5, pady=5, sticky="ew")
-                self.cargar_clases_combobox(combo_clases)
-            else:
-                tk.Entry(frame_izquierda, textvariable=var, width=30).grid(row=i, column=1, padx=5, pady=5, sticky="ew")
-
-        tk.Button(self.frame_contenido, text="Cancelar", font=("Segoe UI", 12), bg="#bae8e8", command=self.cargar_vista_general).pack(side="left", padx=10)
-
-    def cargar_vista_general(self):
-        """Carga la vista general de entrenadores."""
-        self.limpiar_contenido()
-
-        frame_botones = tk.Frame(self.frame_contenido, bg="#272643")
-        frame_botones.pack(side="top", fill="x")
-
-        tk.Button(frame_botones, text="Editar Entrenador - Clases", font=("Segoe UI", 12), bg="#bae8e8",
-                  command=self.cargar_editar_entrenadores).pack(side="left", padx=10, pady=10)
-
-        tk.Button(frame_botones, text="Mostrar Servicios", font=("Segoe UI", 12), bg="#bae8e8",
-                  command=self.mostrar_servicios).pack(side="left", padx=10, pady=10)
-
-        # Crear tablas en la vista general
-        frame_tabla = tk.Frame(self.frame_contenido, bg="#272643")
-        frame_tabla.pack(fill="both", expand=True)
-
-        columnas = ("Cédula", "Nombre", "Apellido", "Correo", "Teléfono", "Clase")
-        self.tabla_entrenadores = ttk.Treeview(frame_tabla, columns=columnas, show="headings")
-
-        for col in columnas:
-            self.tabla_entrenadores.heading(col, text=col)
-            self.tabla_entrenadores.column(col, width=150, anchor="center")
-
-        self.tabla_entrenadores.pack(side="left", fill="both", expand=True)
-        self.cargar_entrenadores_tabla()
-
-        # Tabla de servicios
-        frame_tabla2 = tk.Frame(self.frame_contenido, bg="#272643")
-        frame_tabla2.pack(fill="both", expand=True)
-
-        label_tabla2 = tk.Label(frame_tabla2, text="Servicios", bg="#272643", font=("Segoe UI", 12))
-        label_tabla2.pack(anchor="n", pady=5)
-
-        columnas_servicios = ("ID", "Servicio")
-        self.tabla_servicios = ttk.Treeview(frame_tabla2, columns=columnas_servicios, show="headings")
-
-        for col in columnas_servicios:
-            self.tabla_servicios.heading(col, text=col)
-            self.tabla_servicios.column(col, width=150, anchor="center")
-
-        self.tabla_servicios.pack(fill="both", expand=True)
-
-
-if __name__ == "__main__":
-    root = tk.Tk()
-    app = GestionEntrenadores(root)
-    root.mainloop()
+def regresar(callback, ventana):
+    ventana.destroy()
+    callback()
