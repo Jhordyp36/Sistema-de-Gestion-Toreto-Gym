@@ -76,17 +76,17 @@ def ventana_gestion_equipos(callback):
         
         # Crear el marco para el formulario
         frame_formulario = tk.Frame(frame_contenido, bg="#272643")
-        frame_formulario.pack(side="top", expand=True)
+        frame_formulario.pack(pady=100, padx=100, fill="both", expand=True)
 
-        # Centrar el formulario
-        frame_formulario.grid(row=0, column=0, padx=10, pady=10)
+        # Título del formulario
+        tk.Label(frame_formulario, text="Registrar Equipo", font=("Segoe UI", 18), bg="#272643", fg="#ffffff").pack(pady=20)
 
         # Campos de entrada
-        tk.Label(frame_formulario, text="Nombre del Equipo:", font=("Segoe UI", 12), bg="#272643", fg="#ffffff").grid(row=0, column=0, padx=10, pady=5, sticky="w")
+        tk.Label(frame_formulario, text="Nombre del Equipo:", font=("Segoe UI", 12), bg="#272643", fg="#ffffff").pack(pady=10)
         entry_nombre_equipo = tk.Entry(frame_formulario, font=("Segoe UI", 12))
-        entry_nombre_equipo.grid(row=0, column=1, padx=10, pady=5, sticky="w")
+        entry_nombre_equipo.pack(pady=10)
 
-        tk.Label(frame_formulario, text="Categoría del Equipo:", font=("Segoe UI", 12), bg="#272643", fg="#ffffff").grid(row=1, column=0, padx=10, pady=5, sticky="w")
+        tk.Label(frame_formulario, text="Categoría del Equipo:", font=("Segoe UI", 12), bg="#272643", fg="#ffffff").pack(pady=10)
         
         # Obtener categorías de la base de datos
         conn = conexion_db()
@@ -100,8 +100,7 @@ def ventana_gestion_equipos(callback):
 
         categoria_var = StringVar()
         categoria_dropdown = ttk.Combobox(frame_formulario, textvariable=categoria_var, values=categorias)
-        categoria_dropdown.grid(row=1, column=1, padx=10, pady=5, sticky="w")
-
+        categoria_dropdown.pack(pady=10)
 
         def guardar_equipo():
             # Obtener los valores del formulario
@@ -149,8 +148,13 @@ def ventana_gestion_equipos(callback):
             finally:
                 conn.close()
 
-        tk.Button(frame_formulario, text="Guardar", font=("Segoe UI", 12), command=guardar_equipo).grid(row=3, column=0, padx=10, pady=10, sticky="e")
-        tk.Button(frame_formulario, text="Cancelar", font=("Segoe UI", 12), command=cargar_equipos_registrados).grid(row=3, column=1, padx=10, pady=10, sticky="e")
+        # Crear un frame para los botones
+        frame_botones = tk.Frame(frame_formulario, bg="#272643")
+        frame_botones.pack(pady=20)
+
+        # Botones de guardar y cancelar
+        tk.Button(frame_botones, text="Guardar", font=("Segoe UI", 12), command=guardar_equipo).pack(side="left", padx=10)
+        tk.Button(frame_botones, text="Cancelar", font=("Segoe UI", 12), command=cargar_equipos_registrados).pack(side="left", padx=10)
 
     def actualizar_estado(tabla_equipos):
         seleccion = tabla_equipos.selection()
@@ -181,9 +185,20 @@ def ventana_gestion_equipos(callback):
                 cursor.execute("SELECT estado FROM equipos WHERE id = ?", (equipo_id,))
                 estado_actual = cursor.fetchone()[0]
 
+                # Validaciones
+                # Verificar que el estado a cambiar sea diferente
                 if estado_nuevo == estado_actual:
                     messagebox.showerror("Error", "El equipo ya se encuentra en ese estado.")
                     return
+                
+                # Verificar si el equipo está en uso
+                if estado_actual == 'En uso':             
+                    cursor.execute("SELECT COUNT(*) > 0 AS en_uso FROM historial_uso_equipos WHERE equipo_id = ? AND fecha_fin_uso IS NULL", (equipo_id,))
+                    en_uso = cursor.fetchone()[0]
+
+                    if en_uso:
+                        messagebox.showerror("Error", "Equipo en uso, no es posible cambiar su estado.")
+                        return
 
                 cursor.execute("UPDATE equipos SET estado = ? WHERE id = ?", (estado_nuevo, equipo_id))
                 conn.commit()
@@ -229,8 +244,8 @@ def ventana_gestion_equipos(callback):
             frame_botones.pack(pady=10)
 
         # Botones dentro del frame
-            tk.Button(frame_botones, text="Sí", font=("Segoe UI", 12), bg="#bae8e8", command=confirmar).pack(side=tk.LEFT, padx=10)
-            tk.Button(frame_botones, text="No", font=("Segoe UI", 12), bg="#bae8e8", command=ventana_confirmacion.destroy).pack(side=tk.LEFT, padx=10)
+            tk.Button(frame_botones, text="Sí", font=("Segoe UI", 12), bg="#bae8e8", width=10, command=confirmar).pack(side=tk.LEFT, padx=10)
+            tk.Button(frame_botones, text="No", font=("Segoe UI", 12), bg="#bae8e8", width=10, command=ventana_confirmacion.destroy).pack(side=tk.LEFT, padx=10)
 
         # Frame para agrupar los botones en la ventana principal
         frame_botones_principal = tk.Frame(ventana_actualizar, bg="#272643")
@@ -305,24 +320,25 @@ def ventana_gestion_equipos(callback):
         frame_botones = tk.Frame(frame_contenido, bg="#272643")
         frame_botones.pack(pady=10)
 
+
         def registrar_uso():
             limpiar_contenido()
-
+            
             # Crear el marco para el formulario
             frame_formulario = tk.Frame(frame_contenido, bg="#272643")
-            frame_formulario.pack(side="top", expand=True)
+            frame_formulario.pack(pady=100, padx=100, fill="both", expand=True)
 
-            # Centrar el formulario
-            frame_formulario.grid(row=0, column=0, padx=10, pady=10)
+            # Título del formulario
+            tk.Label(frame_formulario, text="Registrar Uso", font=("Segoe UI", 18), bg="#272643", fg="#ffffff").pack(pady=20)
 
             # Campos de entrada
-            tk.Label(frame_formulario, text="C.I. Cliente:", font=("Segoe UI", 12), bg="#272643", fg="#ffffff").grid(row=0, column=0, padx=10, pady=5, sticky="w")
+            tk.Label(frame_formulario, text="C.I. Cliente:", font=("Segoe UI", 12), bg="#272643", fg="#ffffff").pack(pady=10)
             entry_ci_cliente = tk.Entry(frame_formulario, font=("Segoe UI", 12))
-            entry_ci_cliente.grid(row=0, column=1, padx=10, pady=5, sticky="w")
+            entry_ci_cliente.pack(pady=10)
 
-            tk.Label(frame_formulario, text="Nombre Equipo:", font=("Segoe UI", 12), bg="#272643", fg="#ffffff").grid(row=1, column=0, padx=10, pady=5, sticky="w")
+            tk.Label(frame_formulario, text="Nombre Equipo:", font=("Segoe UI", 12), bg="#272643", fg="#ffffff").pack(pady=10)
             entry_nombre_equipo = tk.Entry(frame_formulario, font=("Segoe UI", 12))
-            entry_nombre_equipo.grid(row=1, column=1, padx=10, pady=5, sticky="w")
+            entry_nombre_equipo.pack(pady=10)
 
             def guardar_uso():
                 ci_cliente = entry_ci_cliente.get().strip()
@@ -338,6 +354,29 @@ def ventana_gestion_equipos(callback):
 
                 try:
                     cursor = conn.cursor()
+                    
+                    # Verificar si el cliente existe
+                    cursor.execute("SELECT * FROM usuarios WHERE cedula = ?", (ci_cliente,))
+                    cliente = cursor.fetchone()
+
+                    if not cliente:
+                        messagebox.showerror("Error", "El cliente no existe en el sistema.")
+                        return
+
+                    # Verificar si el cliente tiene membresía activa
+                    cursor.execute("SELECT membresia_id FROM usuarios WHERE cedula = ?", (ci_cliente,))
+                    membresia_id = cursor.fetchone()
+
+                    if membresia_id is None or membresia_id[0] is None:
+                        messagebox.showerror("Error", "El cliente no tiene membresía.")
+                        return
+
+                    cursor.execute("SELECT estado FROM membresias WHERE id = ?", (membresia_id[0],))
+                    membresia_estado = cursor.fetchone()[0]
+
+                    if membresia_estado != 'Activo':
+                        messagebox.showerror("Error", "Membresía no activa.")
+                        return
 
                     # Verificar si el cliente tiene acceso al equipo
                     cursor.execute('''
@@ -354,14 +393,6 @@ def ventana_gestion_equipos(callback):
 
                     if not tiene_acceso:
                         messagebox.showerror("Error", "El cliente no tiene acceso a este equipo.")
-                        return
-
-                    # Verificar si el cliente existe en el sistema
-                    cursor.execute("SELECT cedula FROM usuarios WHERE cedula = ?", (ci_cliente,))
-                    cliente_id = cursor.fetchone()
-
-                    if not cliente_id:
-                        messagebox.showerror("Error", "El cliente no existe en el sistema.")
                         return
 
                     # Verificar si el equipo existe en el sistema
@@ -399,8 +430,14 @@ def ventana_gestion_equipos(callback):
                 finally:
                     conn.close()
 
-            tk.Button(frame_formulario, text="Guardar", font=("Segoe UI", 12), command=guardar_uso).grid(row=3, column=0, padx=10, pady=10, sticky="e")
-            tk.Button(frame_formulario, text="Cancelar", font=("Segoe UI", 12), command=cargar_historial_uso_equipos).grid(row=3, column=1, padx=10, pady=10, sticky="e")
+            # Crear un frame para los botones
+            frame_botones = tk.Frame(frame_formulario, bg="#272643")
+            frame_botones.pack(pady=20)
+
+            # Botones de guardar y cancelar
+            tk.Button(frame_botones, text="Guardar", font=("Segoe UI", 12), command=guardar_uso).pack(side="left", padx=10)
+            tk.Button(frame_botones, text="Cancelar", font=("Segoe UI", 12), command=cargar_historial_uso_equipos).pack(side="left", padx=10)
+            
 
         btn_registrar_uso = tk.Button(frame_botones, text="Registrar Uso", font=("Segoe UI", 12), bg="#bae8e8", command=registrar_uso)
         btn_registrar_uso.pack(side="left", padx=10)
@@ -452,16 +489,23 @@ def ventana_gestion_equipos(callback):
             ventana_confirmacion.title("Confirmar Fin del Uso")
             ventana_confirmacion.configure(bg="#272643")
 
-            tk.Label(ventana_confirmacion, text="¿Está seguro de registrar el fin del uso?", font=("Segoe UI", 12), bg="#272643", fg="#ffffff").pack(pady=10)
+            frame_contenido = Frame(ventana_confirmacion, bg="#272643")
+            frame_contenido.pack(pady=20, padx=20)
 
-            tk.Button(ventana_confirmacion, text="Sí", font=("Segoe UI", 12), bg="#bae8e8", command=lambda: [confirmar_fin_uso(), ventana_confirmacion.destroy()]).pack(side="left", padx=10)
-            tk.Button(ventana_confirmacion, text="No", font=("Segoe UI", 12), bg="#bae8e8", command=ventana_confirmacion.destroy).pack(side="left", padx=10)
+            tk.Label(frame_contenido, text="¿Está seguro de registrar el fin del uso?", font=("Segoe UI", 12), bg="#272643", fg="#ffffff").pack(pady=10)
+
+            frame_botones = Frame(frame_contenido, bg="#272643")
+            frame_botones.pack(pady=10)
+
+            tk.Button(frame_botones, text="Confirmar", font=("Segoe UI", 12), bg="#bae8e8", command=lambda: [confirmar_fin_uso(), ventana_confirmacion.destroy()]).pack(side=tk.LEFT, padx=10)
+            tk.Button(frame_botones, text="Cancelar", font=("Segoe UI", 12), bg="#bae8e8", command=ventana_confirmacion.destroy).pack(side=tk.LEFT, padx=10)
 
         btn_registrar_fin_uso = tk.Button(frame_botones, text="Registrar Fin de Uso", font=("Segoe UI", 12), bg="#bae8e8", command=registrar_fin_uso)
         btn_registrar_fin_uso.pack(side="left", padx=10)
 
         cargar_datos_historial(tabla_historial)
 
+        
     def cargar_datos_historial(tabla):
         conn = conexion_db()
         if not conn:
