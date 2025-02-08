@@ -118,7 +118,7 @@ cursor.execute('''
 
 # Tabla Historial de uso de equipos
 cursor.execute('''
-    CREATE TABLE IF NOT EXISTS historial_uso_equipos_nueva (
+    CREATE TABLE IF NOT EXISTS historial_uso_equipos (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         cedula TEXT NOT NULL,
         equipo_id INTEGER NOT NULL,
