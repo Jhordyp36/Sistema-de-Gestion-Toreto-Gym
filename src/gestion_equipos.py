@@ -75,18 +75,19 @@ def ventana_gestion_equipos(callback):
         limpiar_contenido()
         
         # Crear el marco para el formulario
-        frame_formulario = tk.Frame(frame_contenido, bg="#272643")
-        frame_formulario.pack(pady=100, padx=100, fill="both", expand=True)
+        frame_formulario = tk.Frame(frame_contenido, bg="#bae8e8", width=400, height=400)
+        frame_formulario.pack(pady=50, padx=50)
+        frame_formulario.pack_propagate(False)
 
         # Título del formulario
-        tk.Label(frame_formulario, text="Registrar Equipo", font=("Segoe UI", 18), bg="#272643", fg="#ffffff").pack(pady=20)
-
+        tk.Label(frame_formulario, text="Registrar Equipo", font=("Segoe UI", 18), bg="#bae8e8", fg="#000000").pack(pady=20)
+        
         # Campos de entrada
-        tk.Label(frame_formulario, text="Nombre del Equipo:", font=("Segoe UI", 12), bg="#272643", fg="#ffffff").pack(pady=10)
+        tk.Label(frame_formulario, text="Nombre del Equipo:", font=("Segoe UI", 12), bg="#bae8e8", fg="#000000").pack(pady=10)
         entry_nombre_equipo = tk.Entry(frame_formulario, font=("Segoe UI", 12))
         entry_nombre_equipo.pack(pady=10)
 
-        tk.Label(frame_formulario, text="Categoría del Equipo:", font=("Segoe UI", 12), bg="#272643", fg="#ffffff").pack(pady=10)
+        tk.Label(frame_formulario, text="Categoría del Equipo:", font=("Segoe UI", 12), bg="#bae8e8", fg="#000000").pack(pady=10)
         
         # Obtener categorías de la base de datos
         conn = conexion_db()
@@ -101,6 +102,7 @@ def ventana_gestion_equipos(callback):
         categoria_var = StringVar()
         categoria_dropdown = ttk.Combobox(frame_formulario, textvariable=categoria_var, values=categorias)
         categoria_dropdown.pack(pady=10)
+        
 
         def guardar_equipo():
             # Obtener los valores del formulario
@@ -149,7 +151,7 @@ def ventana_gestion_equipos(callback):
                 conn.close()
 
         # Crear un frame para los botones
-        frame_botones = tk.Frame(frame_formulario, bg="#272643")
+        frame_botones = tk.Frame(frame_formulario, bg="#bae8e8")
         frame_botones.pack(pady=20)
 
         # Botones de guardar y cancelar
@@ -325,18 +327,19 @@ def ventana_gestion_equipos(callback):
             limpiar_contenido()
             
             # Crear el marco para el formulario
-            frame_formulario = tk.Frame(frame_contenido, bg="#272643")
-            frame_formulario.pack(pady=100, padx=100, fill="both", expand=True)
+            frame_formulario = tk.Frame(frame_contenido, bg="#bae8e8", width=400, height=400)
+            frame_formulario.pack(pady=50, padx=50)
+            frame_formulario.pack_propagate(False)
 
             # Título del formulario
-            tk.Label(frame_formulario, text="Registrar Uso", font=("Segoe UI", 18), bg="#272643", fg="#ffffff").pack(pady=20)
+            tk.Label(frame_formulario, text="Registrar Uso", font=("Segoe UI", 18), bg="#bae8e8", fg="#000000").pack(pady=20)
 
             # Campos de entrada
-            tk.Label(frame_formulario, text="C.I. Cliente:", font=("Segoe UI", 12), bg="#272643", fg="#ffffff").pack(pady=10)
+            tk.Label(frame_formulario, text="C.I. Cliente:", font=("Segoe UI", 12), bg="#bae8e8", fg="#000000").pack(pady=10)
             entry_ci_cliente = tk.Entry(frame_formulario, font=("Segoe UI", 12))
             entry_ci_cliente.pack(pady=10)
 
-            tk.Label(frame_formulario, text="Nombre Equipo:", font=("Segoe UI", 12), bg="#272643", fg="#ffffff").pack(pady=10)
+            tk.Label(frame_formulario, text="Nombre Equipo:", font=("Segoe UI", 12), bg="#bae8e8", fg="#000000").pack(pady=10)
             entry_nombre_equipo = tk.Entry(frame_formulario, font=("Segoe UI", 12))
             entry_nombre_equipo.pack(pady=10)
 
@@ -377,6 +380,14 @@ def ventana_gestion_equipos(callback):
                     if membresia_estado != 'Activo':
                         messagebox.showerror("Error", "Membresía no activa.")
                         return
+                    
+                    # Verificar si el equipo existe en el sistema
+                    cursor.execute("SELECT id FROM equipos WHERE nombre = ?", (nombre_equipo,))
+                    equipo_id = cursor.fetchone()
+
+                    if not equipo_id:
+                        messagebox.showerror("Error", "El equipo no existe en el sistema.")
+                        return
 
                     # Verificar si el cliente tiene acceso al equipo
                     cursor.execute('''
@@ -394,13 +405,13 @@ def ventana_gestion_equipos(callback):
                     if not tiene_acceso:
                         messagebox.showerror("Error", "El cliente no tiene acceso a este equipo.")
                         return
+                    
+                    # Verificar si el cliente ya tiene un uso de máquina en curso
+                    cursor.execute("SELECT COUNT(*) > 0 AS tiene_uso_en_curso FROM historial_uso_equipos WHERE cedula = ? AND fecha_fin_uso IS NULL", (ci_cliente,))
+                    tiene_uso_en_curso = cursor.fetchone()[0]
 
-                    # Verificar si el equipo existe en el sistema
-                    cursor.execute("SELECT id FROM equipos WHERE nombre = ?", (nombre_equipo,))
-                    equipo_id = cursor.fetchone()
-
-                    if not equipo_id:
-                        messagebox.showerror("Error", "El equipo no existe en el sistema.")
+                    if tiene_uso_en_curso:
+                        messagebox.showerror("Error", "El cliente ya tiene un uso de máquina en curso. Debe finalizar el uso actual antes de iniciar otro.")
                         return
 
                     # Verificar el estado del equipo
@@ -414,6 +425,7 @@ def ventana_gestion_equipos(callback):
                     if estado_equipo == 'En uso':
                         messagebox.showerror("Error", "El equipo no está libre para uso.")
                         return
+
 
                     # Registrar el uso del equipo
                     cursor.execute("INSERT INTO historial_uso_equipos (cedula, equipo_id, fecha_inicio_uso) VALUES (?, ?, strftime('%Y-%m-%d %H:%M:%S', 'now', 'localtime'))", (ci_cliente, equipo_id[0]))
@@ -431,7 +443,7 @@ def ventana_gestion_equipos(callback):
                     conn.close()
 
             # Crear un frame para los botones
-            frame_botones = tk.Frame(frame_formulario, bg="#272643")
+            frame_botones = tk.Frame(frame_formulario, bg="#bae8e8")
             frame_botones.pack(pady=20)
 
             # Botones de guardar y cancelar
