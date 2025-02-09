@@ -109,11 +109,23 @@ def ventana_gestion_equipos(callback):
             nombre_equipo = entry_nombre_equipo.get().strip()
             categoria_equipo = categoria_var.get()
 
+            # Verificar que los campos estén llenos
+            if not nombre_equipo or not categoria_equipo:
+                messagebox.showerror("Error", "Por favor, complete todos los campos.")
+                return
+
             # Validaciones
+            #Validación de longitud
             if not nombre_equipo or len(nombre_equipo) > 100:
                 messagebox.showerror("Error", "El nombre del equipo debe ser una cadena de hasta 100 caracteres.")
                 return
+            
+            # Validar que el nombre del equipo solo contenga letras
+            if not nombre_equipo.replace(" ", "").isalpha():
+                messagebox.showerror("Error", "El nombre del equipo solo puede contener letras y espacios.")
+                return
 
+            # Validación de campo vació de categoría
             if not categoria_equipo:
                 messagebox.showerror("Error", "La categoría del equipo es obligatoria.")
                 return
@@ -349,6 +361,16 @@ def ventana_gestion_equipos(callback):
 
                 if not ci_cliente or not nombre_equipo:
                     messagebox.showerror("Error", "Por favor, complete todos los campos.")
+                    return
+                
+                # Validar que la cédula solo contenga números
+                if not ci_cliente.isdigit():
+                    messagebox.showerror("Error", "La cédula solo puede contener números.")
+                    return
+
+                # Validar que el nombre del equipo solo contenga letras
+                if not nombre_equipo.replace(" ", "").isalpha():
+                    messagebox.showerror("Error", "El nombre del equipo solo puede contener letras y espacios.")
                     return
 
                 conn = conexion_db()
