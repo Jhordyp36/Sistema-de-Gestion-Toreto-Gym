@@ -51,7 +51,8 @@ def crear_ventana_principal(usuario, callback):
         ventana_administracion(lambda: crear_ventana_principal(usuario, callback))
 
     def abrir_gestion_equipos():
-        print("En proceso")
+        ventana_principal.destroy()
+        ventana_gestion_equipos(lambda: crear_ventana_principal(usuario, callback))
         
     def abrir_gestion_entrenadores():
         ventana_principal.destroy()
@@ -127,7 +128,7 @@ def crear_ventana_principal(usuario, callback):
         relief="groove",
         bd=2
     )
-    boton_gestion_equipos.grid(row=2, column=0, padx=10, pady=10)
+    boton_gestion_equipos.grid(row=2, column=1, padx=10, pady=10)
 
     boton_gestion_entrenadores = Button(
         frame_botones,
