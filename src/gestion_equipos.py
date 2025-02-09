@@ -100,7 +100,7 @@ def ventana_gestion_equipos(callback):
         conn.close()
 
         categoria_var = StringVar()
-        categoria_dropdown = ttk.Combobox(frame_formulario, textvariable=categoria_var, values=categorias)
+        categoria_dropdown = ttk.Combobox(frame_formulario, textvariable=categoria_var, values=categorias, font=("Segoe UI", 12), width=18)
         categoria_dropdown.pack(pady=10)
         
 
@@ -230,7 +230,7 @@ def ventana_gestion_equipos(callback):
         tk.Label(ventana_actualizar, text="¿Está seguro de actualizar el estado del equipo?", font=("Segoe UI", 12), bg="#272643", fg="#ffffff").pack(pady=10)
 
         estado_var = StringVar()
-        estado_dropdown = ttk.Combobox(ventana_actualizar, textvariable=estado_var, values=('Libre para uso', 'En uso', 'Inactivo'))
+        estado_dropdown = ttk.Combobox(ventana_actualizar, textvariable=estado_var, values=('Libre para uso', 'En uso', 'Inactivo'), font=("Segoe UI", 12), width=14)
         estado_dropdown.pack(pady=10)
 
         conn = conexion_db()
@@ -351,13 +351,25 @@ def ventana_gestion_equipos(callback):
             entry_ci_cliente = tk.Entry(frame_formulario, font=("Segoe UI", 12))
             entry_ci_cliente.pack(pady=10)
 
+            # Obtener nombres de equipos de la base de datos
             tk.Label(frame_formulario, text="Nombre Equipo:", font=("Segoe UI", 12), bg="#bae8e8", fg="#000000").pack(pady=10)
-            entry_nombre_equipo = tk.Entry(frame_formulario, font=("Segoe UI", 12))
-            entry_nombre_equipo.pack(pady=10)
+            conn = conexion_db()
+            if not conn:
+                return
+
+            cursor = conn.cursor()
+            cursor.execute("SELECT nombre FROM equipos")
+            nombres_equipos = [fila[0] for fila in cursor.fetchall()]
+            conn.close()
+
+            equipo_var = StringVar()
+            equipo_dropdown = ttk.Combobox(frame_formulario, textvariable=equipo_var, values=nombres_equipos, font=("Segoe UI", 12), width=18)
+            equipo_dropdown.pack(pady=10)
+
 
             def guardar_uso():
                 ci_cliente = entry_ci_cliente.get().strip()
-                nombre_equipo = entry_nombre_equipo.get().strip()
+                nombre_equipo = equipo_var.get()
 
                 if not ci_cliente or not nombre_equipo:
                     messagebox.showerror("Error", "Por favor, complete todos los campos.")
@@ -368,13 +380,13 @@ def ventana_gestion_equipos(callback):
                     messagebox.showerror("Error", "La cédula solo puede contener números.")
                     return
 
+                conn = conexion_db()
+                if not conn:
+                    return
+
                 # Validar que el nombre del equipo solo contenga letras
                 if not nombre_equipo.replace(" ", "").isalpha():
                     messagebox.showerror("Error", "El nombre del equipo solo puede contener letras y espacios.")
-                    return
-
-                conn = conexion_db()
-                if not conn:
                     return
 
                 try:
@@ -447,7 +459,6 @@ def ventana_gestion_equipos(callback):
                     if estado_equipo == 'En uso':
                         messagebox.showerror("Error", "El equipo no está libre para uso.")
                         return
-
 
                     # Registrar el uso del equipo
                     cursor.execute("INSERT INTO historial_uso_equipos (cedula, equipo_id, fecha_inicio_uso) VALUES (?, ?, strftime('%Y-%m-%d %H:%M:%S', 'now', 'localtime'))", (ci_cliente, equipo_id[0]))

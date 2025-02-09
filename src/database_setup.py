@@ -54,6 +54,7 @@ cursor.execute('''
     )
 ''')
 
+
 # Tabla Equipos
 cursor.execute('''
     CREATE TABLE IF NOT EXISTS equipos (
@@ -115,6 +116,7 @@ cursor.execute('''
         FOREIGN KEY (cedula) REFERENCES usuarios(cedula)
     )
 ''')
+
 
 # Tabla Historial de uso de equipos
 cursor.execute('''
