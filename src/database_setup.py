@@ -54,14 +54,13 @@ cursor.execute('''
     )
 ''')
 
-
-# Crear la nueva tabla con la restricción corregida
+# Tabla Equipos
 cursor.execute('''
-    CREATE TABLE equipos (
+    CREATE TABLE IF NOT EXISTS equipos (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         nombre TEXT NOT NULL UNIQUE,
         categoria_id INTEGER NOT NULL,
-        estado TEXT NOT NULL CHECK(estado IN ('Disponible', 'No Disponible', 'X')),
+        estado TEXT NOT NULL CHECK(estado IN ('En uso', 'Libre para uso', 'Inactivo')),
         FOREIGN KEY (categoria_id) REFERENCES categorias_equipos(id)
     )
 ''')
@@ -123,11 +122,13 @@ cursor.execute('''
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         cedula TEXT NOT NULL,
         equipo_id INTEGER NOT NULL,
-        fecha_uso TEXT NOT NULL,
+        fecha_inicio_uso TEXT NOT NULL,
+        fecha_fin_uso TEXT,
         FOREIGN KEY (cedula) REFERENCES usuarios(cedula),
         FOREIGN KEY (equipo_id) REFERENCES equipos(id)
     )
 ''')
+
 
 # Tabla de Pagos
 cursor.execute('''
@@ -244,12 +245,12 @@ cursor.execute('''
 cursor.execute('''
     INSERT OR IGNORE INTO equipos (nombre, categoria_id, estado)
     VALUES 
-        ('Bicicleta Estática', (SELECT id FROM categorias_equipos WHERE nombre = 'Cardio'), 'Disponible'),
-        ('Cinta de Correr', (SELECT id FROM categorias_equipos WHERE nombre = 'Cardio'), 'Disponible'),
-        ('Banco de Pesas', (SELECT id FROM categorias_equipos WHERE nombre = 'Pesas libres'), 'Disponible'),
-        ('Pesas de mano', (SELECT id FROM categorias_equipos WHERE nombre = 'Pesas libres'), 'Disponible'),
-        ('Máquina de Pecho', (SELECT id FROM categorias_equipos WHERE nombre = 'Máquinas de fuerza'), 'Disponible'),
-        ('Máquina de Piernas', (SELECT id FROM categorias_equipos WHERE nombre = 'Máquinas de fuerza'), 'Disponible')
+        ('Bicicleta Estática', (SELECT id FROM categorias_equipos WHERE nombre = 'Cardio'), 'Libre para uso'),
+        ('Cinta de Correr', (SELECT id FROM categorias_equipos WHERE nombre = 'Cardio'), 'Libre para uso'),
+        ('Banco de Pesas', (SELECT id FROM categorias_equipos WHERE nombre = 'Pesas libres'), 'Libre para uso'),
+        ('Pesas de mano', (SELECT id FROM categorias_equipos WHERE nombre = 'Pesas libres'), 'Libre para uso'),
+        ('Máquina de Pecho', (SELECT id FROM categorias_equipos WHERE nombre = 'Máquinas de fuerza'), 'Libre para uso'),
+        ('Máquina de Piernas', (SELECT id FROM categorias_equipos WHERE nombre = 'Máquinas de fuerza'), 'Libre para uso')
 ''')
 
 # Insertar servicios (Clases y Equipos)
