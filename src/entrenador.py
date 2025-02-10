@@ -1,3 +1,4 @@
+from datetime import datetime
 import os
 import sqlite3
 import tkinter as tk
@@ -139,13 +140,132 @@ def ventana_entrenadores(usuario, callback):
         finally:
             conn.close()
 
+    def registrar_entrenador():
+        """Abre la interfaz de registro de entrenadores."""
+        ventana_registrar = tk.Toplevel()
+        ventana_registrar.title("Registrar Entrenador")
+        ventana_registrar.geometry("900x500")
+        ventana_registrar.configure(bg="#272643")
+
+        # Frame izquierdo - Datos del entrenador
+        frame_izq = Frame(ventana_registrar, bg="#272643", padx=20, pady=20)
+        frame_izq.pack(side="left", fill="y")
+
+        Label(frame_izq, text="Registrar Nuevo Entrenador", font=("Segoe UI", 14, "bold"), fg="white", bg="#272643").pack(pady=5)
+
+        Label(frame_izq, text="Cédula:", bg="#272643", fg="white").pack(anchor="w")
+        entry_cedula = Entry(frame_izq)
+        entry_cedula.pack(fill="x")
+
+        Label(frame_izq, text="Nombres:", bg="#272643", fg="white").pack(anchor="w")
+        entry_nombres = Entry(frame_izq)
+        entry_nombres.pack(fill="x")
+
+        Label(frame_izq, text="Apellidos:", bg="#272643", fg="white").pack(anchor="w")
+        entry_apellidos = Entry(frame_izq)
+        entry_apellidos.pack(fill="x")
+
+        Label(frame_izq, text="Teléfono:", bg="#272643", fg="white").pack(anchor="w")
+        entry_telefono = Entry(frame_izq)
+        entry_telefono.pack(fill="x")
+
+        Label(frame_izq, text="Correo:", bg="#272643", fg="white").pack(anchor="w")
+        entry_correo = Entry(frame_izq)
+        entry_correo.pack(fill="x")
+
+        Label(frame_izq, text="Fecha de Nacimiento:", bg="#272643", fg="white").pack(anchor="w")
+        entry_fecha_nacimiento = DateEntry(frame_izq, width=28, background='darkblue', foreground='white', borderwidth=2, date_pattern='yyyy-mm-dd')
+        entry_fecha_nacimiento.pack(fill="x")
+
+        # Frame derecho - Selección de servicios
+        frame_der = Frame(ventana_registrar, bg="#272643", padx=20, pady=20)
+        frame_der.pack(side="right", fill="both", expand=True)
+
+        Label(frame_der, text="Seleccionar Servicios", font=("Segoe UI", 14, "bold"), fg="white", bg="#272643").pack(pady=5)
+
+        scroll_y = Scrollbar(frame_der, orient="vertical")
+        lista_servicios = Listbox(frame_der, selectmode="single", height=12, yscrollcommand=scroll_y.set)
+        scroll_y.config(command=lista_servicios.yview)
+
+        lista_servicios.pack(side="left", fill="both", expand=True)
+        scroll_y.pack(side="right", fill="y")
+
+        # Cargar servicios desde la base de datos
+        conn = conexion_db()
+        cursor = conn.cursor()
+        cursor.execute("SELECT id, nombre FROM servicios WHERE disponible = 'Si'")
+        servicios = cursor.fetchall()
+        conn.close()
+
+        for servicio in servicios:
+            lista_servicios.insert("end", f"{servicio[0]} - {servicio[1]}")
+
+        def guardar_entrenador():
+            """Guarda el nuevo entrenador en la base de datos."""
+            cedula = entry_cedula.get().strip()
+            nombres = entry_nombres.get().strip()
+            apellidos = entry_apellidos.get().strip()
+            correo = entry_correo.get().strip()
+            telefono = entry_telefono.get().strip()
+            fecha_nacimiento = entry_fecha_nacimiento.get_date()
+            fecha_registro = datetime.now().strftime("%Y-%m-%d %H:%M:%S")  # Obtener la fecha actual
+
+            # Corregir el formato del teléfono
+            if not telefono.startswith("0"):
+                telefono = "0" + telefono  # Asegurar que tenga el 0 inicial
+
+            conn = conexion_db()
+            cursor = conn.cursor()
+
+            try:
+                # Obtener el ID de la membresía "VIP"
+                cursor.execute("SELECT id FROM membresias WHERE nombre = 'VIP'")
+                membresia_vip = cursor.fetchone()
+                if not membresia_vip:
+                    messagebox.showerror("Error", "No se encontró la membresía 'VIP' en la base de datos.")
+                    return
+                membresia_id = membresia_vip[0]
+
+                # Insertar en la tabla usuarios
+                cursor.execute("""
+                    INSERT INTO usuarios (cedula, nombres, apellidos, usuario, contrasena, telefono, correo, rol, estado, fecha_nacimiento, membresia_id, fecha_registro)
+                    VALUES (?, ?, ?, NULL, NULL, ?, ?, 'Entrenador', 'A', ?, ?, ?)
+                """, (cedula, nombres, apellidos, telefono, correo, fecha_nacimiento, membresia_id, fecha_registro))
+
+                # Obtener ID de los servicios seleccionados
+                servicios_seleccionados = lista_servicios.curselection()
+
+                # Limpiar servicios anteriores en caso de que ya existan
+                cursor.execute("DELETE FROM membresias_servicios WHERE membresia_id = ?", (membresia_id,))
+
+                for index in servicios_seleccionados:
+                    servicio_id = int(lista_servicios.get(index).split(" - ")[0])
+                    cursor.execute("INSERT INTO membresias_servicios (membresia_id, servicio_id) VALUES (?, ?)", (membresia_id, servicio_id))
+
+                conn.commit()
+                messagebox.showinfo("Éxito", "Entrenador registrado correctamente.")
+                ventana_registrar.destroy()
+                cargar_datos_entrenadores()
+
+            except sqlite3.Error as e:
+                messagebox.showerror("Error", f"No se pudo registrar el entrenador: {e}")
+            finally:
+                conn.close()
+
+        # Botón para guardar
+        Button(ventana_registrar, text="Guardar", font=("Segoe UI", 12), bg="#bae8e8", command=guardar_entrenador).pack(pady=10)
+
+        # Botón para cancelar
+        Button(ventana_registrar, text="Cancelar", font=("Segoe UI", 12), bg="#bae8e8", command=ventana_registrar.destroy).pack(pady=5)
+
+
     def editar_entrenador():
-        """Abre una ventana para editar la información de un entrenador, membresía y sus servicios."""
+        """Abre una ventana para editar la información de un entrenador, sin modificar la membresía (se mantiene en VIP)."""
         seleccionado = tabla.selection()
         if not seleccionado:
             messagebox.showerror("Error", "Seleccione un entrenador para editar")
             return
-        
+
         item = tabla.item(seleccionado[0])
         datos = item['values']
 
@@ -177,29 +297,18 @@ def ventana_entrenadores(usuario, callback):
         entry_apellidos.pack(fill="x")
 
         Label(frame_izq, text="Teléfono:", bg="#272643", fg="white").pack(anchor="w")
+        telefono = str(datos[3])  # Convertir a string
+        if len(telefono) == 9:  # Si falta el "0" inicial
+            telefono = "0" + telefono  # Agregar "0" al inicio
+        
         entry_telefono = Entry(frame_izq)
-        entry_telefono.insert(0, datos[3])
+        entry_telefono.insert(0, telefono)
         entry_telefono.pack(fill="x")
 
         Label(frame_izq, text="Correo:", bg="#272643", fg="white").pack(anchor="w")
         entry_correo = Entry(frame_izq)
         entry_correo.insert(0, datos[4])
         entry_correo.pack(fill="x")
-
-        # Membresía
-        Label(frame_izq, text="Membresía:", bg="#272643", fg="white").pack(anchor="w")
-        combo_membresia = ttk.Combobox(frame_izq, state="readonly")
-        combo_membresia.pack(fill="x")
-
-        # Obtener Membresías Disponibles
-        conn = conexion_db()
-        cursor = conn.cursor()
-        cursor.execute("SELECT nombre FROM membresias")
-        membresias = [m[0] for m in cursor.fetchall()]
-        conn.close()
-
-        combo_membresia["values"] = membresias
-        combo_membresia.set(datos[6])  # Establecer membresía actual
 
         # Marco Derecho - Lista de Servicios
         frame_der = Frame(ventana_editar, bg="#272643", padx=20, pady=20)
@@ -217,28 +326,28 @@ def ventana_entrenadores(usuario, callback):
         # Cargar los servicios desde la base de datos
         conn = conexion_db()
         cursor = conn.cursor()
-        cursor.execute("SELECT nombre FROM servicios")
+        cursor.execute("SELECT id, nombre FROM servicios")
         servicios = cursor.fetchall()
 
-        # Cargar servicios disponibles en la lista
+        # Insertar servicios en la lista
         for servicio in servicios:
-            lista_servicios.insert("end", servicio[0])
+            lista_servicios.insert("end", f"{servicio[0]} - {servicio[1]}")
 
-        # Seleccionar los servicios ya asignados
+        # Obtener servicios actuales del entrenador
         cursor.execute("""
-            SELECT s.nombre FROM servicios s
+            SELECT s.id, s.nombre FROM servicios s
             JOIN membresias_servicios ms ON s.id = ms.servicio_id
             JOIN usuarios u ON ms.membresia_id = u.membresia_id
             WHERE u.cedula = ?
         """, (datos[0],))
-        
+
         servicios_asignados = cursor.fetchall()
         conn.close()
 
-        servicios_asignados = [s[0] for s in servicios_asignados]
-
+        # Seleccionar servicios actuales
+        servicios_asignados_ids = [str(s[0]) for s in servicios_asignados]
         for idx in range(lista_servicios.size()):
-            if lista_servicios.get(idx) in servicios_asignados:
+            if lista_servicios.get(idx).split(" - ")[0] in servicios_asignados_ids:
                 lista_servicios.selection_set(idx)
 
         def actualizar_entrenador():
@@ -247,177 +356,23 @@ def ventana_entrenadores(usuario, callback):
             nuevo_apellidos = entry_apellidos.get()
             nuevo_telefono = entry_telefono.get()
             nuevo_correo = entry_correo.get()
-            nueva_membresia = combo_membresia.get()
             cedula = datos[0]
 
-            if not (nuevo_nombres and nuevo_apellidos and nuevo_telefono and nuevo_correo and nueva_membresia):
-                messagebox.showerror("Error", "Todos los campos deben estar llenos")
-                return
+            # Corregir formato del teléfono
+            if not nuevo_telefono.startswith("0"):
+                nuevo_telefono = "0" + nuevo_telefono  # Asegurar que tenga el 0 inicial
 
             conn = conexion_db()
             cursor = conn.cursor()
+
             try:
-                # Obtener ID de la membresía seleccionada
-                cursor.execute("SELECT id FROM membresias WHERE nombre = ?", (nueva_membresia,))
-                membresia_id = cursor.fetchone()[0]
-
-                cursor.execute("""
-                    UPDATE usuarios SET nombres = ?, apellidos = ?, telefono = ?, correo = ?, membresia_id = ? WHERE cedula = ?
-                """, (nuevo_nombres, nuevo_apellidos, nuevo_telefono, nuevo_correo, membresia_id, cedula))
-
-                # Actualizar servicios asignados
-                cursor.execute("DELETE FROM membresias_servicios WHERE membresia_id = (SELECT membresia_id FROM usuarios WHERE cedula = ?)", (cedula,))
-                
-                for idx in lista_servicios.curselection():
-                    servicio_nombre = lista_servicios.get(idx)
-                    cursor.execute("""
-                        INSERT INTO membresias_servicios (membresia_id, servicio_id)
-                        VALUES ((SELECT membresia_id FROM usuarios WHERE cedula = ?), (SELECT id FROM servicios WHERE nombre = ?))
-                    """, (cedula, servicio_nombre))
-
-                conn.commit()
-                messagebox.showinfo("Éxito", "Entrenador actualizado correctamente")
-                ventana_editar.destroy()
-                cargar_datos_entrenadores()
-            except sqlite3.Error as e:
-                messagebox.showerror("Error", f"No se pudo actualizar el entrenador: {e}")
-            finally:
-                conn.close()
-
-        # Botón de actualización
-        btn_actualizar = Button(ventana_editar, text="Actualizar", font=("Segoe UI", 12), bg="#bae8e8", command=actualizar_entrenador)
-        btn_actualizar.pack(pady=10)
-
-        # Botón para regresar a la ventana general sin cerrar el programa
-        btn_regresar = Button(ventana_editar, text="Regresar", font=("Segoe UI", 12), bg="#bae8e8", command=ventana_editar.destroy)
-        btn_regresar.pack(pady=5)
-
-    def editar_entrenador():
-        """Abre una ventana para editar la información de un entrenador, membresía y sus servicios."""
-        seleccionado = tabla.selection()
-        if not seleccionado:
-            messagebox.showerror("Error", "Seleccione un entrenador para editar")
-            return
-        
-        item = tabla.item(seleccionado[0])
-        datos = item['values']
-
-        ventana_editar = tk.Toplevel(ventana)
-        ventana_editar.title("Editar Entrenador")
-        ventana_editar.geometry("900x500")
-        ventana_editar.configure(bg="#272643")
-
-        # Marco Izquierdo - Información del Entrenador
-        frame_izq = Frame(ventana_editar, bg="#272643", padx=20, pady=20)
-        frame_izq.pack(side="left", fill="y")
-
-        Label(frame_izq, text="Editar Información del Entrenador", font=("Segoe UI", 14, "bold"), fg="white", bg="#272643").pack(pady=5)
-
-        Label(frame_izq, text="Cédula:", bg="#272643", fg="white").pack(anchor="w")
-        entry_cedula = Entry(frame_izq)
-        entry_cedula.insert(0, datos[0])
-        entry_cedula.config(state="disabled")  # No se puede modificar la cédula
-        entry_cedula.pack(fill="x")
-
-        Label(frame_izq, text="Nombres:", bg="#272643", fg="white").pack(anchor="w")
-        entry_nombres = Entry(frame_izq)
-        entry_nombres.insert(0, datos[1])
-        entry_nombres.pack(fill="x")
-
-        Label(frame_izq, text="Apellidos:", bg="#272643", fg="white").pack(anchor="w")
-        entry_apellidos = Entry(frame_izq)
-        entry_apellidos.insert(0, datos[2])
-        entry_apellidos.pack(fill="x")
-
-        Label(frame_izq, text="Teléfono:", bg="#272643", fg="white").pack(anchor="w")
-        entry_telefono = Entry(frame_izq)
-        entry_telefono.insert(0, datos[3])
-        entry_telefono.pack(fill="x")
-
-        Label(frame_izq, text="Correo:", bg="#272643", fg="white").pack(anchor="w")
-        entry_correo = Entry(frame_izq)
-        entry_correo.insert(0, datos[4])
-        entry_correo.pack(fill="x")
-
-        # Membresía
-        Label(frame_izq, text="Membresía:", bg="#272643", fg="white").pack(anchor="w")
-        combo_membresia = ttk.Combobox(frame_izq, state="readonly")
-        combo_membresia.pack(fill="x")
-
-        # Obtener Membresías Disponibles
-        conn = conexion_db()
-        cursor = conn.cursor()
-        cursor.execute("SELECT nombre FROM membresias")
-        membresias = [m[0] for m in cursor.fetchall()]
-        conn.close()
-
-        combo_membresia["values"] = membresias
-        combo_membresia.set(datos[6])  # Establecer membresía actual
-
-        # Marco Derecho - Lista de Servicios
-        frame_der = Frame(ventana_editar, bg="#272643", padx=20, pady=20)
-        frame_der.pack(side="right", fill="both", expand=True)
-
-        Label(frame_der, text="Servicios Disponibles", font=("Segoe UI", 14, "bold"), fg="white", bg="#272643").pack(pady=5)
-
-        scroll_y = Scrollbar(frame_der, orient="vertical")
-        lista_servicios = Listbox(frame_der, selectmode="single", height=12, yscrollcommand=scroll_y.set)  # Cambiado a "single"
-        scroll_y.config(command=lista_servicios.yview)
-
-        lista_servicios.pack(side="left", fill="both", expand=True)
-        scroll_y.pack(side="right", fill="y")
-
-        # Cargar los servicios desde la base de datos
-        conn = conexion_db()
-        cursor = conn.cursor()
-        cursor.execute("SELECT nombre FROM servicios")
-        servicios = cursor.fetchall()
-
-        # Cargar servicios disponibles en la lista
-        for servicio in servicios:
-            lista_servicios.insert("end", servicio[0])
-
-        # Seleccionar el servicio ya asignado
-        cursor.execute("""
-            SELECT s.nombre FROM servicios s
-            JOIN membresias_servicios ms ON s.id = ms.servicio_id
-            JOIN usuarios u ON ms.membresia_id = u.membresia_id
-            WHERE u.cedula = ?
-        """, (datos[0],))
-        
-        servicio_asignado = cursor.fetchone()
-        conn.close()
-
-        if servicio_asignado:
-            servicio_asignado = servicio_asignado[0]
-            for idx in range(lista_servicios.size()):
-                if lista_servicios.get(idx) == servicio_asignado:
-                    lista_servicios.selection_set(idx)
-                    break
-
-        def actualizar_entrenador():
-            """Actualiza la información del entrenador en la base de datos."""
-            nuevo_nombres = entry_nombres.get()
-            nuevo_apellidos = entry_apellidos.get()
-            nuevo_telefono = entry_telefono.get()
-            nuevo_correo = entry_correo.get()
-            nueva_membresia = combo_membresia.get()
-            cedula = datos[0]
-
-            if not (nuevo_nombres and nuevo_apellidos and nuevo_telefono and nuevo_correo and nueva_membresia):
-                messagebox.showerror("Error", "Todos los campos deben estar llenos")
-                return
-
-            conn = conexion_db()
-            cursor = conn.cursor()
-            try:
-                # Obtener ID de la membresía seleccionada
-                cursor.execute("SELECT id FROM membresias WHERE nombre = ?", (nueva_membresia,))
-                membresia_id = cursor.fetchone()
-                if not membresia_id:
-                    messagebox.showerror("Error", "La membresía seleccionada no existe.")
+                # Obtener ID de la membresía "VIP"
+                cursor.execute("SELECT id FROM membresias WHERE nombre = 'VIP'")
+                membresia_vip = cursor.fetchone()
+                if not membresia_vip:
+                    messagebox.showerror("Error", "No se encontró la membresía 'VIP' en la base de datos.")
                     return
-                membresia_id = membresia_id[0]
+                membresia_id = membresia_vip[0]
 
                 # Actualizar información del entrenador
                 cursor.execute("""
@@ -426,17 +381,13 @@ def ventana_entrenadores(usuario, callback):
                     WHERE cedula = ?
                 """, (nuevo_nombres, nuevo_apellidos, nuevo_telefono, nuevo_correo, membresia_id, cedula))
 
-                # Actualizar servicio asignado
-                cursor.execute("DELETE FROM membresias_servicios WHERE membresia_id = (SELECT membresia_id FROM usuarios WHERE cedula = ?)", (cedula,))
-                
-                # Insertar el nuevo servicio seleccionado
+                # Eliminar servicios previos y actualizar con los nuevos
+                cursor.execute("DELETE FROM membresias_servicios WHERE membresia_id = ?", (membresia_id,))
+
                 seleccion = lista_servicios.curselection()
-                if seleccion:
-                    servicio_nombre = lista_servicios.get(seleccion[0])
-                    cursor.execute("""
-                        INSERT INTO membresias_servicios (membresia_id, servicio_id)
-                        VALUES (?, (SELECT id FROM servicios WHERE nombre = ?))
-                    """, (membresia_id, servicio_nombre))
+                for idx in seleccion:
+                    servicio_id = int(lista_servicios.get(idx).split(" - ")[0])
+                    cursor.execute("INSERT INTO membresias_servicios (membresia_id, servicio_id) VALUES (?, ?)", (membresia_id, servicio_id))
 
                 conn.commit()
                 messagebox.showinfo("Éxito", "Entrenador actualizado correctamente")
