@@ -298,6 +298,9 @@ def ventana_gestion_equipos(callback):
 
         for item in tabla.get_children():
             tabla.delete(item)
+            
+        if not registros:
+            messagebox.showerror("Error", "No se encontraron resultados")
 
         for registro in registros:
             tabla.insert("", "end", values=registro)
@@ -592,6 +595,9 @@ def ventana_gestion_equipos(callback):
         for item in tabla.get_children():
             tabla.delete(item)
 
+        if not registros:
+            messagebox.showerror("Error", "No se encontraron resultados")
+            
         for registro in registros:
             tabla.insert("", "end", values=registro)
 

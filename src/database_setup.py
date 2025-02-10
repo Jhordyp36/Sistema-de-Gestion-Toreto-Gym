@@ -131,6 +131,7 @@ cursor.execute('''
     )
 ''')
 
+
 # Tabla de Pagos
 cursor.execute('''
     CREATE TABLE IF NOT EXISTS pagos (
