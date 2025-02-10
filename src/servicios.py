@@ -99,7 +99,7 @@ class GestionServicios:
             tk.Label(form_servicios, text=campo, bg="#272643", fg="#bae8e8", font=default_font).grid(row=i, column=0, sticky="w", padx=5, pady=5)
 
             if campo == "Disponibilidad:":
-                combo = ttk.Combobox(form_servicios, textvariable=var, values=["Sí", "No"], state="readonly", width=27)
+                combo = ttk.Combobox(form_servicios, textvariable=var, values=["Si", "No"], state="readonly", width=27)
                 combo.grid(row=i, column=1, padx=5, pady=5, sticky="ew")
             elif campo == "Equipo:":
                 self.combo_equipos = ttk.Combobox(form_servicios, textvariable=self.var_equipo, state="readonly", width=27)
