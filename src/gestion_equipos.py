@@ -130,6 +130,11 @@ def ventana_gestion_equipos(callback):
                 messagebox.showerror("Error", "La categoría del equipo es obligatoria.")
                 return
             
+            # Validación de la categoría
+            if categoria_equipo not in categorias:
+                messagebox.showerror("Error", "La categoría del equipo no es válida.")
+                return
+            
             # Verificar si el equipo ya está registrado
             conn = conexion_db()
             if not conn:
@@ -200,6 +205,7 @@ def ventana_gestion_equipos(callback):
                 estado_actual = cursor.fetchone()[0]
 
                 # Validaciones
+            
                 # Verificar que el estado a cambiar sea diferente
                 if estado_nuevo == estado_actual:
                     messagebox.showerror("Error", "El equipo ya se encuentra en ese estado.")
@@ -218,6 +224,7 @@ def ventana_gestion_equipos(callback):
                 conn.commit()
                 messagebox.showinfo("Éxito", "Estado del equipo actualizado correctamente.")
                 cargar_equipos_registrados()
+                
             except Exception as e:
                 messagebox.showerror("Error", f"No se pudo actualizar el estado del equipo: {e}")
             finally:
@@ -249,9 +256,16 @@ def ventana_gestion_equipos(callback):
             tk.Label(ventana_confirmacion, text="¿Está seguro de realizar los cambios?", font=("Segoe UI", 12), bg="#272643", fg="#ffffff").pack(pady=10)
 
             def confirmar():
+                                
+                # Validar el estado nuevo
+                if estado_dropdown.get() not in {'Libre para uso', 'En uso', 'Inactivo'}:
+                    messagebox.showerror("Error", "El estado no es válido.")
+                    return
+                
                 confirmar_actualizacion(estado_dropdown.get())
                 ventana_confirmacion.destroy()
                 ventana_actualizar.destroy()
+                
 
         # Frame para agrupar los botones
             frame_botones = tk.Frame(ventana_confirmacion, bg="#272643")
@@ -390,6 +404,11 @@ def ventana_gestion_equipos(callback):
 
                 conn = conexion_db()
                 if not conn:
+                    return
+
+                # Validar nombre de equipo
+                if nombre_equipo not in nombres_equipos:
+                    messagebox.showerror("Error", "El nombre del equipo no es válido.")
                     return
 
                 # Validar que el nombre del equipo solo contenga letras
