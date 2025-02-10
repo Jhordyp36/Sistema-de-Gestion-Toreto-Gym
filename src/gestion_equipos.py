@@ -286,6 +286,11 @@ def ventana_gestion_equipos(callback):
             tabla.insert("", "end", values=fila)
 
     def consultar_busqueda(termino, tabla):
+        
+        if not termino.strip():
+            messagebox.showerror("Error", "Por favor, ingrese un término de búsqueda.")
+            return
+        
         conn = conexion_db()
         if not conn:
             return
@@ -576,6 +581,11 @@ def ventana_gestion_equipos(callback):
             tabla.insert("", "end", values=fila)
 
     def consultar_busqueda_historial(termino, tabla):
+        
+        if not termino.strip():
+            messagebox.showerror("Error", "Por favor, ingrese un término de búsqueda.")
+            return
+        
         conn = conexion_db()
         if not conn:
             return
