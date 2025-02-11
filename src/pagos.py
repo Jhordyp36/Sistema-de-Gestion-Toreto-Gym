@@ -278,7 +278,7 @@ def ventana_pagos(usuario, callback):
         btn_regresar.pack(side="right", padx=10)
 
     def eliminar_pago():
-        """Elimina un pago seleccionado de la base de datos."""
+        """Elimina un pago seleccionado de la base de datos y actualiza el estado de pago a 'No paga' si es necesario."""
         seleccionado = tabla.selection()
         if not seleccionado:
             messagebox.showerror("Error", "Seleccione un pago para eliminar")
@@ -295,12 +295,20 @@ def ventana_pagos(usuario, callback):
         conn = conexion_db()
         cursor = conn.cursor()
         try:
+            # Eliminar el pago seleccionado
             cursor.execute("DELETE FROM pagos WHERE id = ?", (pago_id,))
             conn.commit()
 
-            # Actualizar estado de pago después de la eliminación
-            nuevo_estado_pago = obtener_estado_pago(cedula)
-            messagebox.showinfo("Éxito", f"Pago eliminado correctamente. Estado de pago: {nuevo_estado_pago}")
+            # Verificar si el usuario tiene otros pagos registrados
+            cursor.execute("SELECT COUNT(*) FROM pagos WHERE cedula = ?", (cedula,))
+            count_pagos = cursor.fetchone()[0]
+
+            # Si no hay más pagos, el estado de pago se considera "No paga"
+            if count_pagos == 0:
+                messagebox.showinfo("Éxito", f"Pago eliminado correctamente. Estado de pago: No paga")
+            else:
+                messagebox.showinfo("Éxito", f"Pago eliminado correctamente. El usuario aún tiene otros pagos registrados.")
+
             cargar_datos_usuarios()  # Recargar la lista de pagos
         except sqlite3.Error as e:
             messagebox.showerror("Error", f"No se pudo eliminar el pago: {e}")
