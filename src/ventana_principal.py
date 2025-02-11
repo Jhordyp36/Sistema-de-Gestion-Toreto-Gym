@@ -3,6 +3,7 @@ from tkinter import CENTER, Button, Frame, Label, PhotoImage, Tk
 from config.config import ICONS_DIR, IMAGES_DIR
 from src.membresias import ventana_membresias
 from src.entrenador import ventana_entrenadores
+from src.pagos import ventana_pagos
 from src.gestion_equipos import ventana_gestion_equipos
 from src.utils.helpers import cargar_icono
 from src.administracion_sistema import ventana_administracion
@@ -43,8 +44,9 @@ def crear_ventana_principal(usuario, callback):
         app = GestionServicios(root, callback_regreso=lambda: crear_ventana_principal(usuario, callback))
         root.mainloop()
 
-    def abrir_pagos_facturacion():
-        print("En proceso")
+    def abrir_gestion_pagos():
+        ventana_principal.destroy()
+        ventana_pagos(usuario, lambda: crear_ventana_principal(usuario, callback))
 
     def abrir_administracion():
         ventana_principal.destroy()
@@ -96,7 +98,7 @@ def crear_ventana_principal(usuario, callback):
         height=2,
         bg="#bae8e8",
         fg="black",
-        command=abrir_pagos_facturacion,
+        command=abrir_gestion_pagos,
         relief="groove",
         bd=2
     )
@@ -144,6 +146,20 @@ def crear_ventana_principal(usuario, callback):
     )
     boton_gestion_entrenadores.grid(row=2, column=0, padx=10, pady=10)
 
+    boton_gestion_pagos = Button(
+        frame_botones,
+        text="Gestión de Entrenadores",
+        font=("Segoe UI", 12),
+        width=20,
+        height=2,
+        bg="#bae8e8",
+        fg="black",
+        command=abrir_gestion_pagos,
+        relief="groove",
+        bd=2
+    )
+    boton_gestion_pagos.grid(row=2, column=0, padx=10, pady=10)
+    
     boton_cerrar = Button(
         frame_botones,
         text="Cerrar sesión",
