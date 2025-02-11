@@ -145,20 +145,6 @@ def crear_ventana_principal(usuario, callback):
         bd=2
     )
     boton_gestion_entrenadores.grid(row=2, column=0, padx=10, pady=10)
-
-    boton_gestion_pagos = Button(
-        frame_botones,
-        text="Gestión de Entrenadores",
-        font=("Segoe UI", 12),
-        width=20,
-        height=2,
-        bg="#bae8e8",
-        fg="black",
-        command=abrir_gestion_pagos,
-        relief="groove",
-        bd=2
-    )
-    boton_gestion_pagos.grid(row=2, column=0, padx=10, pady=10)
     
     boton_cerrar = Button(
         frame_botones,
