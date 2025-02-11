@@ -2,7 +2,7 @@ from datetime import datetime
 import os
 import sqlite3
 import tkinter as tk
-from tkinter import Button, Entry, Frame, Label, Listbox, Scrollbar, StringVar, Tk, messagebox, ttk
+from tkinter import Button, Entry, Frame, Label, Listbox, Scrollbar, StringVar, Tk, Toplevel, messagebox, ttk
 from tkcalendar import DateEntry
 from reportlab.pdfgen import canvas  # Para generar facturas en PDF
 
@@ -185,7 +185,7 @@ def ventana_pagos(usuario, callback):
         # Obtener estado de pago utilizando la función obtener_estado_pago
         estado_pago = obtener_estado_pago(datos[0])  # La cédula está en la primera columna
 
-        ventana_editar = tk.Toplevel(ventana)
+        ventana_editar = Toplevel(ventana)
         ventana_editar.title("Editar Pago")
         ventana_editar.geometry("600x400")
         ventana_editar.configure(bg="#272643")
@@ -208,10 +208,19 @@ def ventana_pagos(usuario, callback):
         entry_monto.pack(fill="x")
 
         Label(frame_principal, text="Fecha de Pago:", bg="#272643", fg="white").pack(anchor="w")
+        
+        # Cuadro de selección de fecha con DateEntry
         entry_fecha_pago = DateEntry(frame_principal, width=28, background='darkblue', foreground='white', borderwidth=2, date_pattern='yyyy-mm-dd')
         
-        # Establece la fecha de pago si está presente
-        fecha_pago = datos[4] if datos[4] else datetime.now().date()
+        # Asignamos la fecha actual si la fecha de pago no es válida (No paga, None, etc.)
+        if datos[4] in [None, 'No paga'] or not datos[4]:
+            fecha_pago = datetime.now().date()  # Asignar la fecha actual si no hay una fecha de pago válida
+        else:
+            try:
+                fecha_pago = datetime.strptime(datos[4], '%Y-%m-%d').date()  # Si es una fecha válida, la usamos
+            except ValueError:
+                fecha_pago = datetime.now().date()  # Si ocurre un error, asignamos la fecha actual
+
         entry_fecha_pago.set_date(fecha_pago)
         entry_fecha_pago.pack(fill="x")
 
@@ -236,10 +245,6 @@ def ventana_pagos(usuario, callback):
             
             monto = float(monto)
             fecha_pago = entry_fecha_pago.get_date()
-
-            # Si la fecha de pago es vacía, podemos establecerla como None
-            if not fecha_pago:
-                fecha_pago = None
 
             conn = conexion_db()
             cursor = conn.cursor()
@@ -296,7 +301,7 @@ def ventana_pagos(usuario, callback):
             # Actualizar estado de pago después de la eliminación
             nuevo_estado_pago = obtener_estado_pago(cedula)
             messagebox.showinfo("Éxito", f"Pago eliminado correctamente. Estado de pago: {nuevo_estado_pago}")
-            cargar_datos_pagos()  # Recargar la lista de pagos
+            cargar_datos_usuarios()  # Recargar la lista de pagos
         except sqlite3.Error as e:
             messagebox.showerror("Error", f"No se pudo eliminar el pago: {e}")
         finally:
@@ -473,7 +478,6 @@ def ventana_pagos(usuario, callback):
             messagebox.showerror("Error", f"No se pudo generar la factura: {str(e)}")
         finally:
             conn.close()
-
 
     def ver_historial_pagos():
         """Muestra el historial de pagos de un usuario seleccionado."""
